@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import { authHelpers } from '../lib/supabase';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -53,11 +54,27 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
 
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      if (isLogin) {
+        const { error } = await authHelpers.signIn(formData.email, formData.password);
+        if (error) {
+          setErrors({ general: error.message });
+        } else {
+          onLogin();
+        }
+      } else {
+        const { error } = await authHelpers.signUp(formData.email, formData.password, formData.name);
+        if (error) {
+          setErrors({ general: error.message });
+        } else {
+          onLogin();
+        }
+      }
+    } catch (error) {
+      setErrors({ general: 'An unexpected error occurred' });
+    } finally {
       setIsLoading(false);
-      onLogin();
-    }, 1500);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,12 +85,20 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = async (provider: string) => {
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const { error } = await authHelpers.signIn(formData.email, formData.password);
+      if (error) {
+        setErrors({ general: error.message });
+      } else {
+        onLogin();
+      }
+    } catch (error) {
+      setErrors({ general: 'An unexpected error occurred' });
+    } finally {
       setIsLoading(false);
-      onLogin();
-    }, 1000);
+    }
   };
 
   return (
@@ -162,6 +187,12 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
                 placeholder="Confirm your password"
               />
               {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
+            </div>
+          )}
+
+          {errors.general && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p className="text-red-600 dark:text-red-400 text-sm">{errors.general}</p>
             </div>
           )}
 

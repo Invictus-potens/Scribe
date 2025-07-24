@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { supabase, authHelpers } from '../lib/supabase';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import NotesEditor from '../components/NotesEditor';
@@ -28,10 +29,27 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      setIsAuthenticated(true);
-    }
+    const checkAuth = async () => {
+      const { session } = await authHelpers.getSession();
+      if (session) {
+        setIsAuthenticated(true);
+      }
+    };
+    
+    checkAuth();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          setIsAuthenticated(true);
+        } else if (event === 'SIGNED_OUT') {
+          setIsAuthenticated(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const toggleTheme = () => {
@@ -48,12 +66,11 @@ export default function Home() {
   const handleLogin = () => {
     setIsAuthenticated(true);
     setShowAuthModal(false);
-    localStorage.setItem('auth_token', 'user_authenticated');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authHelpers.signOut();
     setIsAuthenticated(false);
-    localStorage.removeItem('auth_token');
   };
 
   if (!isAuthenticated) {

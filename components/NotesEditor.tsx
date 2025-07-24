@@ -2,6 +2,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { notesHelpers, Note } from '../lib/supabase';
+import { authHelpers } from '../lib/supabase';
 
 interface NotesEditorProps {
   selectedFolder: string;
@@ -30,24 +32,55 @@ export default function NotesEditor({
 
   useEffect(() => {
     if (selectedNote) {
-      setTitle(selectedNote.title);
-      setContent(selectedNote.content);
+      setTitle(selectedNote.title || '');
+      setContent(selectedNote.content || '');
       setTags(selectedNote.tags || []);
-      setIsPinned(selectedNote.pinned || false);
+      setIsPinned(selectedNote.is_pinned || false);
     }
   }, [selectedNote]);
 
-  const handleSave = () => {
-    if (selectedNote) {
+  const handleSave = async () => {
+    if (!selectedNote) return;
+
+    try {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) return;
+
       const updatedNote = {
         ...selectedNote,
         title,
         content,
         tags,
-        pinned: isPinned,
-        updatedAt: new Date()
+        is_pinned: isPinned,
+        folder: selectedFolder !== 'all' ? selectedFolder : undefined,
       };
-      setSelectedNote(updatedNote);
+
+      if (selectedNote.id) {
+        // Update existing note
+        const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
+        if (error) {
+          console.error('Error updating note:', error);
+          return;
+        }
+        setSelectedNote(data);
+      } else {
+        // Create new note
+        const { data, error } = await notesHelpers.createNote({
+          user_id: user.id,
+          title,
+          content,
+          tags,
+          is_pinned: isPinned,
+          folder: selectedFolder !== 'all' ? selectedFolder : undefined,
+        });
+        if (error) {
+          console.error('Error creating note:', error);
+          return;
+        }
+        setSelectedNote(data);
+      }
+    } catch (error) {
+      console.error('Error saving note:', error);
     }
   };
 

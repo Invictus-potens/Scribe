@@ -146,7 +146,7 @@ export default function KanbanBoard() {
     title: '',
     description: '',
     assignee: '',
-    priority: 'medium' as const,
+    priority: 'medium' as 'low' | 'medium' | 'high',
     dueDate: '',
     tags: [] as string[]
   });

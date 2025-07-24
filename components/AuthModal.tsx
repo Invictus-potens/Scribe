@@ -19,6 +19,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
@@ -67,7 +68,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
         if (error) {
           setErrors({ general: error.message });
         } else {
-          onLogin();
+          setShowEmailConfirmation(true);
         }
       }
     } catch (error) {
@@ -267,6 +268,46 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
           <i className="ri-close-line w-5 h-5 flex items-center justify-center text-gray-500"></i>
         </button>
       </div>
+
+      {showEmailConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl w-full max-w-md mx-4">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="ri-mail-send-line w-8 h-8 text-green-600 dark:text-green-400"></i>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                Check Your Email
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400">
+                We've sent a confirmation link to <strong>{formData.email}</strong>
+              </p>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+              <p className="text-blue-800 dark:text-blue-200 text-sm">
+                Please check your email and click the confirmation link to activate your account. 
+                You can then sign in to access your workspace.
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowEmailConfirmation(false)}
+                className="flex-1 px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              >
+                Back to Sign In
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

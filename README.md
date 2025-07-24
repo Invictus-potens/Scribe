@@ -1,123 +1,190 @@
 # Scribe - Your Ultimate Productivity Workspace
 
-Scribe é uma aplicação completa de produtividade construída com Next.js e Supabase, oferecendo um workspace integrado para gerenciar notas, calendário, kanban e assistente de IA.
+Scribe é uma aplicação completa de produtividade que combina notas, calendário, kanban board e assistente de IA em uma interface moderna e intuitiva.
 
 ## 🚀 Funcionalidades
 
-- **📝 Editor de Notas Avançado**: Crie, edite e organize suas notas com formatação rica
-- **📁 Sistema de Pastas**: Organize suas notas em pastas personalizadas
-- **🏷️ Sistema de Tags**: Marque e categorize suas notas com tags coloridas
-- **📅 Calendário Integrado**: Gerencie eventos e lembretes
-- **📋 Kanban Board**: Organize tarefas em um quadro visual
-- **🤖 Assistente de IA**: Integração com IA para melhorar sua produtividade
-- **🌙 Modo Escuro**: Interface adaptável com tema claro/escuro
-- **🔐 Autenticação Segura**: Sistema de login/registro com Supabase Auth
-- **📱 Responsivo**: Funciona perfeitamente em desktop e mobile
+### 📝 **Sistema de Notas**
+- Editor de texto rico com formatação
+- Organização por pastas
+- Sistema de tags
+- Notas fixadas
+- Busca avançada
+- Modo de visualização dividida
+
+### 📅 **Calendário**
+- Visualização mensal
+- Criação e edição de eventos
+- Lembretes configuráveis
+- Cores personalizadas para eventos
+- Integração com banco de dados
+
+### 📋 **Kanban Board**
+- Quadros personalizáveis
+- Colunas customizáveis
+- Cards com prioridades, tags e datas
+- Drag & drop para mover cards
+- Sistema de cores por prioridade
+
+### 🤖 **Assistente de IA**
+- Interface conversacional
+- Integração com IA para produtividade
+- Histórico de conversas
+
+### 🔐 **Autenticação**
+- Login/Registro com email e senha
+- Confirmação de email via Supabase
+- Sessões persistentes
+- Logout seguro
 
 ## 🛠️ Tecnologias
 
 - **Frontend**: Next.js 15, React 19, TypeScript
-- **Backend**: Supabase (PostgreSQL, Auth, Real-time)
 - **Styling**: Tailwind CSS
-- **UI Components**: Lucide React Icons
-- **Calendar**: React Big Calendar
-- **Drag & Drop**: DND Kit
-- **Charts**: Recharts
+- **Backend**: Supabase (PostgreSQL)
+- **Autenticação**: Supabase Auth
+- **Deploy**: Railway (configurado)
 
 ## 📋 Pré-requisitos
 
 - Node.js 18+ 
 - Conta no Supabase
-- npm, yarn, pnpm ou bun
+- Conta no Railway (opcional para deploy)
 
-## 🚀 Configuração Rápida
+## ⚙️ Configuração
 
 ### 1. Clone o repositório
-
 ```bash
-git clone <url-do-repositorio>
-cd scribe
+git clone <seu-repositorio>
+cd Scribe
 ```
 
 ### 2. Instale as dependências
-
 ```bash
 npm install
 ```
 
 ### 3. Configure o Supabase
 
-Siga o guia detalhado em [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
+#### 3.1 Crie um projeto no Supabase
+1. Acesse [supabase.com](https://supabase.com)
+2. Crie uma nova conta ou faça login
+3. Crie um novo projeto
+4. Anote a URL e a chave anônima
+
+#### 3.2 Configure o banco de dados
+1. No painel do Supabase, vá para "SQL Editor"
+2. Execute o conteúdo do arquivo `supabase-schema.sql`
+3. Isso criará todas as tabelas e políticas de segurança necessárias
+
+#### 3.3 Configure a autenticação
+1. No painel do Supabase, vá para "Authentication" > "Settings"
+2. Configure o redirecionamento de email para: `http://localhost:3000`
+3. Ative a confirmação de email
 
 ### 4. Configure as variáveis de ambiente
 
 Crie um arquivo `.env.local` na raiz do projeto:
 
 ```env
+# Supabase Configuration
 NEXT_PUBLIC_SUPABASE_URL=sua_url_do_supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anonima
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anonima_do_supabase
+
+# Optional: Supabase Service Role Key (for server-side operations)
+SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role
 ```
 
 ### 5. Execute o projeto
-
 ```bash
 npm run dev
 ```
 
-Acesse [http://localhost:3000](http://localhost:3000) para ver a aplicação.
+Acesse [http://localhost:3000](http://localhost:3000)
 
-## 📁 Estrutura do Projeto
+## 🚀 Deploy no Railway
 
+### 1. Conecte ao Railway
+```bash
+npm install -g @railway/cli
+railway login
 ```
-scribe/
-├── app/                    # App Router do Next.js
-│   ├── globals.css        # Estilos globais
-│   ├── layout.tsx         # Layout principal
-│   └── page.tsx           # Página inicial
-├── components/            # Componentes React
-│   ├── AIAssistant.tsx    # Assistente de IA
-│   ├── AuthModal.tsx      # Modal de autenticação
-│   ├── Calendar.tsx       # Componente do calendário
-│   ├── Header.tsx         # Cabeçalho da aplicação
-│   ├── KanbanBoard.tsx    # Quadro Kanban
-│   ├── NotesEditor.tsx    # Editor de notas
-│   └── Sidebar.tsx        # Barra lateral
-├── lib/                   # Utilitários e configurações
-│   └── supabase.ts        # Cliente e helpers do Supabase
-├── supabase-schema.sql    # Schema do banco de dados
-└── SUPABASE_SETUP.md      # Guia de configuração do Supabase
+
+### 2. Configure as variáveis de ambiente no Railway
+1. Acesse o painel do Railway
+2. Vá para "Variables"
+3. Adicione as mesmas variáveis do `.env.local`
+
+### 3. Deploy
+```bash
+railway up
 ```
+
+## 📊 Estrutura do Banco de Dados
+
+### Tabelas Principais:
+- **users**: Perfis de usuários
+- **notes**: Notas com tags e pastas
+- **folders**: Pastas para organização
+- **tags**: Tags personalizadas
+- **calendar_events**: Eventos do calendário
+- **kanban_boards**: Quadros kanban
+- **kanban_columns**: Colunas dos quadros
+- **kanban_cards**: Cards com prioridades e tags
+
+### Segurança:
+- Row Level Security (RLS) habilitado
+- Políticas de acesso por usuário
+- Triggers para timestamps automáticos
+
+## 🎨 Funcionalidades Implementadas
+
+### ✅ Autenticação Completa
+- [x] Registro com confirmação de email
+- [x] Login seguro
+- [x] Sessões persistentes
+- [x] Logout
+
+### ✅ Sistema de Notas
+- [x] CRUD completo de notas
+- [x] Editor de texto rico
+- [x] Sistema de pastas
+- [x] Tags personalizadas
+- [x] Busca avançada
+- [x] Notas fixadas
+
+### ✅ Calendário
+- [x] Visualização mensal
+- [x] Criação de eventos
+- [x] Edição e exclusão
+- [x] Lembretes
+- [x] Cores personalizadas
+
+### ✅ Kanban Board
+- [x] Quadros personalizáveis
+- [x] Drag & drop
+- [x] Cards com metadados
+- [x] Sistema de prioridades
+- [x] Tags nos cards
+
+### ✅ Interface
+- [x] Design responsivo
+- [x] Modo escuro/claro
+- [x] Componentes reutilizáveis
+- [x] UX otimizada
 
 ## 🔧 Scripts Disponíveis
 
-- `npm run dev` - Inicia o servidor de desenvolvimento
-- `npm run build` - Constrói a aplicação para produção
-- `npm run start` - Inicia o servidor de produção
-- `npm run lint` - Executa o linter
+```bash
+npm run dev          # Desenvolvimento local
+npm run build        # Build de produção
+npm run start        # Servidor de produção
+npm run lint         # Verificação de código
+```
 
-## 📊 Banco de Dados
+## 🤝 Contribuição
 
-O projeto usa Supabase com as seguintes tabelas:
-
-- **users**: Perfis de usuários
-- **folders**: Pastas para organizar notas
-- **notes**: Notas dos usuários
-- **tags**: Tags para categorização
-- **calendar_events**: Eventos do calendário
-
-Todas as tabelas incluem Row Level Security (RLS) para garantir que os usuários só acessem seus próprios dados.
-
-## 🎨 Personalização
-
-### Temas
-A aplicação suporta temas claro e escuro, que podem ser alternados através do botão no cabeçalho.
-
-### Cores
-As cores podem ser personalizadas editando o arquivo `tailwind.config.js`.
-
-## 🤝 Contribuindo
-
-1. Faça um fork do projeto
+1. Fork o projeto
 2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
 3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
 4. Push para a branch (`git push origin feature/AmazingFeature`)
@@ -131,17 +198,21 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 Se você encontrar algum problema ou tiver dúvidas:
 
-1. Verifique o [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
-2. Abra uma issue no GitHub
-3. Consulte a documentação do [Supabase](https://supabase.com/docs)
+1. Verifique se todas as variáveis de ambiente estão configuradas
+2. Confirme se o schema do banco foi executado corretamente
+3. Verifique os logs do console para erros
+4. Abra uma issue no repositório
 
-## 🔮 Roadmap
+## 🎯 Próximos Passos
 
-- [ ] Autenticação social (Google, GitHub)
-- [ ] Upload de arquivos
+- [ ] Integração com Google Calendar
 - [ ] Notificações push
-- [ ] Backup automático
-- [ ] Busca avançada
 - [ ] Compartilhamento de notas
-- [ ] Sincronização offline
-- [ ] API REST pública
+- [ ] Templates de notas
+- [ ] Backup automático
+- [ ] API pública
+- [ ] Mobile app
+
+---
+
+**Scribe** - Transformando sua produtividade com uma interface moderna e funcionalidades poderosas! 🚀

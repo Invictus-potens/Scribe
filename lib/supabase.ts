@@ -56,6 +56,37 @@ export interface Note {
   updated_at?: string
 }
 
+export interface KanbanBoard {
+  id: string
+  user_id: string
+  title: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface KanbanColumn {
+  id: string
+  board_id: string
+  title: string
+  order_index: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface KanbanCard {
+  id: string
+  column_id: string
+  title: string
+  description?: string
+  assignee?: string
+  priority: 'low' | 'medium' | 'high'
+  due_date?: string
+  tags?: string[]
+  order_index: number
+  created_at?: string
+  updated_at?: string
+}
+
 // Database helper functions
 export const authHelpers = {
   async signUp(email: string, password: string, fullName?: string) {
@@ -246,5 +277,129 @@ export const calendarHelpers = {
       .delete()
       .eq('id', id)
     return { error }
+  }
+}
+
+export const kanbanHelpers = {
+  async getBoards(userId: string) {
+    const { data, error } = await supabase
+      .from('kanban_boards')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at')
+    return { data, error }
+  },
+
+  async createBoard(board: Omit<KanbanBoard, 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase
+      .from('kanban_boards')
+      .insert([board])
+      .select()
+      .single()
+    return { data, error }
+  },
+
+  async updateBoard(id: string, updates: Partial<KanbanBoard>) {
+    const { data, error } = await supabase
+      .from('kanban_boards')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+    return { data, error }
+  },
+
+  async deleteBoard(id: string) {
+    const { error } = await supabase
+      .from('kanban_boards')
+      .delete()
+      .eq('id', id)
+    return { error }
+  },
+
+  async getColumns(boardId: string) {
+    const { data, error } = await supabase
+      .from('kanban_columns')
+      .select('*')
+      .eq('board_id', boardId)
+      .order('order_index')
+    return { data, error }
+  },
+
+  async createColumn(column: Omit<KanbanColumn, 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase
+      .from('kanban_columns')
+      .insert([column])
+      .select()
+      .single()
+    return { data, error }
+  },
+
+  async updateColumn(id: string, updates: Partial<KanbanColumn>) {
+    const { data, error } = await supabase
+      .from('kanban_columns')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+    return { data, error }
+  },
+
+  async deleteColumn(id: string) {
+    const { error } = await supabase
+      .from('kanban_columns')
+      .delete()
+      .eq('id', id)
+    return { error }
+  },
+
+  async getCards(columnId: string) {
+    const { data, error } = await supabase
+      .from('kanban_cards')
+      .select('*')
+      .eq('column_id', columnId)
+      .order('order_index')
+    return { data, error }
+  },
+
+  async createCard(card: Omit<KanbanCard, 'id' | 'created_at' | 'updated_at'>) {
+    const { data, error } = await supabase
+      .from('kanban_cards')
+      .insert([card])
+      .select()
+      .single()
+    return { data, error }
+  },
+
+  async updateCard(id: string, updates: Partial<KanbanCard>) {
+    const { data, error } = await supabase
+      .from('kanban_cards')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+    return { data, error }
+  },
+
+  async deleteCard(id: string) {
+    const { error } = await supabase
+      .from('kanban_cards')
+      .delete()
+      .eq('id', id)
+    return { error }
+  },
+
+  async moveCard(cardId: string, newColumnId: string, newOrderIndex: number) {
+    const { data, error } = await supabase
+      .from('kanban_cards')
+      .update({ 
+        column_id: newColumnId, 
+        order_index: newOrderIndex,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', cardId)
+      .select()
+      .single()
+    return { data, error }
   }
 } 

@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { calendarHelpers, authHelpers, CalendarEvent } from '../lib/supabase';
 
 interface Event {
   id: string;
@@ -15,35 +16,8 @@ interface Event {
 
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState<Event[]>([
-    {
-      id: 'cal-1',
-      title: 'Team Meeting',
-      date: '2024-01-15',
-      time: '10:00',
-      description: 'Weekly team sync meeting',
-      reminder: true,
-      color: 'bg-blue-500'
-    },
-    {
-      id: 'cal-2',
-      title: 'Project Deadline',
-      date: '2024-01-20',
-      time: '23:59',
-      description: 'Final submission for Project Alpha',
-      reminder: true,
-      color: 'bg-red-500'
-    },
-    {
-      id: 'cal-3',
-      title: 'Client Presentation',
-      date: '2024-01-25',
-      time: '14:00',
-      description: 'Present quarterly results to client',
-      reminder: false,
-      color: 'bg-green-500'
-    }
-  ]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
@@ -57,6 +31,51 @@ export default function Calendar() {
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Load events from database
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        const { user } = await authHelpers.getCurrentUser();
+        if (!user) {
+          setIsAuthenticated(false);
+          setLoading(false);
+          return;
+        }
+
+        setIsAuthenticated(true);
+        
+        // Get events for current month
+        const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
+        const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).toISOString();
+        
+        const { data, error } = await calendarHelpers.getEvents(user.id, startDate, endDate);
+        if (error) {
+          console.error('Error loading events:', error);
+          return;
+        }
+
+        // Convert CalendarEvent to Event format
+        const convertedEvents: Event[] = (data || []).map(event => ({
+          id: event.id,
+          title: event.title,
+          date: new Date(event.start_date).toISOString().split('T')[0],
+          time: new Date(event.start_date).toTimeString().slice(0, 5),
+          description: event.description || '',
+          reminder: event.reminder_set || false,
+          color: event.color ? `bg-${event.color}-500` : 'bg-blue-500'
+        }));
+
+        setEvents(convertedEvents);
+      } catch (error) {
+        console.error('Error loading events:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadEvents();
+  }, [currentDate]);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -100,33 +119,69 @@ export default function Calendar() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
   };
 
-  const handleCreateEvent = () => {
+  const handleCreateEvent = async () => {
     if (!newEvent.title.trim() || !newEvent.date) return;
 
-    const event: Event = {
-      id: 'cal-' + Date.now(),
-      title: newEvent.title,
-      date: newEvent.date,
-      time: newEvent.time,
-      description: newEvent.description,
-      reminder: newEvent.reminder,
-      color: newEvent.color
-    };
+    try {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) return;
 
-    setEvents([...events, event]);
-    setShowEventModal(false);
-    setNewEvent({
-      title: '',
-      date: '',
-      time: '',
-      description: '',
-      reminder: false,
-      color: 'bg-blue-500'
-    });
+      // Create start date with time
+      const startDate = new Date(`${newEvent.date}T${newEvent.time}:00`);
+      
+      const calendarEvent: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'> = {
+        user_id: user.id,
+        title: newEvent.title,
+        description: newEvent.description,
+        start_date: startDate.toISOString(),
+        color: newEvent.color.replace('bg-', '').replace('-500', ''),
+        reminder_set: newEvent.reminder,
+        reminder_minutes: newEvent.reminder ? 15 : undefined
+      };
+
+      const { data, error } = await calendarHelpers.createEvent(calendarEvent);
+      if (error) {
+        console.error('Error creating event:', error);
+        return;
+      }
+
+      // Convert back to Event format and add to state
+      const event: Event = {
+        id: data.id,
+        title: data.title,
+        date: new Date(data.start_date).toISOString().split('T')[0],
+        time: new Date(data.start_date).toTimeString().slice(0, 5),
+        description: data.description || '',
+        reminder: data.reminder_set || false,
+        color: data.color ? `bg-${data.color}-500` : 'bg-blue-500'
+      };
+
+      setEvents([...events, event]);
+      setShowEventModal(false);
+      setNewEvent({
+        title: '',
+        date: '',
+        time: '',
+        description: '',
+        reminder: false,
+        color: 'bg-blue-500'
+      });
+    } catch (error) {
+      console.error('Error creating event:', error);
+    }
   };
 
-  const handleDeleteEvent = (eventId: string) => {
-    setEvents(events.filter(event => event.id !== eventId));
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const { error } = await calendarHelpers.deleteEvent(eventId);
+      if (error) {
+        console.error('Error deleting event:', error);
+        return;
+      }
+      setEvents(events.filter(event => event.id !== eventId));
+    } catch (error) {
+      console.error('Error deleting event:', error);
+    }
   };
 
   const handleMicrosoftAuth = () => {

@@ -190,6 +190,143 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Kanban Boards table
+CREATE TABLE public.kanban_boards (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Kanban Columns table
+CREATE TABLE public.kanban_columns (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  board_id UUID REFERENCES public.kanban_boards(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  order_index INTEGER NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Kanban Cards table
+CREATE TABLE public.kanban_cards (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  column_id UUID REFERENCES public.kanban_columns(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  assignee TEXT,
+  priority TEXT CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
+  due_date DATE,
+  tags TEXT[],
+  order_index INTEGER NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create indexes for Kanban tables
+CREATE INDEX idx_kanban_boards_user_id ON public.kanban_boards(user_id);
+CREATE INDEX idx_kanban_columns_board_id ON public.kanban_columns(board_id);
+CREATE INDEX idx_kanban_cards_column_id ON public.kanban_cards(column_id);
+
+-- Enable RLS for Kanban tables
+ALTER TABLE public.kanban_boards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kanban_columns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.kanban_cards ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for kanban_boards table
+CREATE POLICY "Users can view own boards" ON public.kanban_boards
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own boards" ON public.kanban_boards
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own boards" ON public.kanban_boards
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own boards" ON public.kanban_boards
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- RLS Policies for kanban_columns table
+CREATE POLICY "Users can view own columns" ON public.kanban_columns
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.kanban_boards 
+      WHERE id = kanban_columns.board_id AND user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert own columns" ON public.kanban_columns
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.kanban_boards 
+      WHERE id = kanban_columns.board_id AND user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update own columns" ON public.kanban_columns
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.kanban_boards 
+      WHERE id = kanban_columns.board_id AND user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete own columns" ON public.kanban_columns
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM public.kanban_boards 
+      WHERE id = kanban_columns.board_id AND user_id = auth.uid()
+    )
+  );
+
+-- RLS Policies for kanban_cards table
+CREATE POLICY "Users can view own cards" ON public.kanban_cards
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.kanban_columns kc
+      JOIN public.kanban_boards kb ON kc.board_id = kb.id
+      WHERE kc.id = kanban_cards.column_id AND kb.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert own cards" ON public.kanban_cards
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.kanban_columns kc
+      JOIN public.kanban_boards kb ON kc.board_id = kb.id
+      WHERE kc.id = kanban_cards.column_id AND kb.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update own cards" ON public.kanban_cards
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM public.kanban_columns kc
+      JOIN public.kanban_boards kb ON kc.board_id = kb.id
+      WHERE kc.id = kanban_cards.column_id AND kb.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete own cards" ON public.kanban_cards
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM public.kanban_columns kc
+      JOIN public.kanban_boards kb ON kc.board_id = kb.id
+      WHERE kc.id = kanban_cards.column_id AND kb.user_id = auth.uid()
+    )
+  );
+
+-- Create triggers for updated_at
+CREATE TRIGGER update_kanban_boards_updated_at BEFORE UPDATE ON public.kanban_boards
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_kanban_columns_updated_at BEFORE UPDATE ON public.kanban_columns
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_kanban_cards_updated_at BEFORE UPDATE ON public.kanban_cards
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Grant necessary permissions
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;

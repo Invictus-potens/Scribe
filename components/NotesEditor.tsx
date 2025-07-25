@@ -10,13 +10,15 @@ interface NotesEditorProps {
   selectedNote: any;
   setSelectedNote: (note: any) => void;
   searchTerm: string;
+  onNoteSaved?: () => void;
 }
 
 export default function NotesEditor({ 
   selectedFolder, 
   selectedNote, 
   setSelectedNote, 
-  searchTerm 
+  searchTerm,
+  onNoteSaved
 }: NotesEditorProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -60,15 +62,29 @@ export default function NotesEditor({
 
       if (selectedNote.id) {
         // Update existing note
+        console.log('Updating note with data:', updatedNote);
         const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
         if (error) {
           console.error('Error updating note:', error);
           alert(`Error updating note: ${error.message}`);
           return;
         }
+        console.log('Note updated successfully:', data);
         setSelectedNote(data);
+        // Notify parent component that note was saved
+        if (onNoteSaved) {
+          onNoteSaved();
+        }
       } else {
         // Create new note
+        console.log('Creating new note with data:', {
+          user_id: user.id,
+          title,
+          content,
+          tags,
+          is_pinned: isPinned,
+          folder: selectedFolder !== 'all' ? selectedFolder : undefined,
+        });
         const { data, error } = await notesHelpers.createNote({
           user_id: user.id,
           title,
@@ -82,7 +98,12 @@ export default function NotesEditor({
           alert(`Error creating note: ${error.message}`);
           return;
         }
+        console.log('Note created successfully:', data);
         setSelectedNote(data);
+        // Notify parent component that note was saved
+        if (onNoteSaved) {
+          onNoteSaved();
+        }
       }
     } catch (error) {
       console.error('Error saving note:', error);
@@ -92,14 +113,20 @@ export default function NotesEditor({
 
   const handleAddTag = () => {
     if (newTag.trim() && !tags.includes(newTag.trim())) {
-      setTags([...tags, newTag.trim()]);
+      const updatedTags = [...tags, newTag.trim()];
+      setTags(updatedTags);
       setNewTag('');
       setShowTagInput(false);
+      // Save the note with updated tags
+      setTimeout(() => handleSave(), 100);
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
+    const updatedTags = tags.filter(tag => tag !== tagToRemove);
+    setTags(updatedTags);
+    // Save the note with updated tags
+    setTimeout(() => handleSave(), 100);
   };
 
   const formatText = (command: string) => {

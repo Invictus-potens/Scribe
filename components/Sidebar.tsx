@@ -11,6 +11,7 @@ interface SidebarProps {
   selectedNote: any;
   setSelectedNote: (note: any) => void;
   searchTerm: string;
+  onNotesUpdate?: () => void;
 }
 
 export default function Sidebar({ 
@@ -19,7 +20,8 @@ export default function Sidebar({
   activeView, 
   selectedNote, 
   setSelectedNote,
-  searchTerm 
+  searchTerm,
+  onNotesUpdate
 }: SidebarProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -27,6 +29,24 @@ export default function Sidebar({
 
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+
+  // Function to reload notes
+  const reloadNotes = async () => {
+    try {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) return;
+
+      const { data: notesData, error: notesError } = await notesHelpers.getNotes(user.id);
+      if (notesError) {
+        console.error('Error loading notes:', notesError);
+      } else {
+        console.log('Notes loaded:', notesData);
+        setNotes(notesData || []);
+      }
+    } catch (error) {
+      console.error('Error reloading notes:', error);
+    }
+  };
 
   // Load data from Supabase
   useEffect(() => {
@@ -44,12 +64,7 @@ export default function Sidebar({
         }
 
         // Load notes
-        const { data: notesData, error: notesError } = await notesHelpers.getNotes(user.id);
-        if (notesError) {
-          console.error('Error loading notes:', notesError);
-        } else {
-          setNotes(notesData || []);
-        }
+        await reloadNotes();
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -59,6 +74,12 @@ export default function Sidebar({
 
     loadData();
   }, []);
+
+  // Reload notes when parent component triggers update
+  useEffect(() => {
+    console.log('Reloading notes due to update trigger');
+    reloadNotes();
+  }, [onNotesUpdate]);
 
   const filteredNotes = notes.filter(note => {
     const matchesFolder = selectedFolder === 'all' || note.folder === selectedFolder;

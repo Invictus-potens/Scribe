@@ -20,6 +20,7 @@ export default function Home() {
   const [selectedFolder, setSelectedFolder] = useState('all');
   const [selectedNote, setSelectedNote] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [notesUpdateTrigger, setNotesUpdateTrigger] = useState(0);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -92,6 +93,11 @@ export default function Home() {
     }
   };
 
+  const handleNoteSaved = () => {
+    // Trigger notes update in sidebar
+    setNotesUpdateTrigger(prev => prev + 1);
+  };
+
   // Show loading screen while checking authentication
   if (isLoading) {
     return (
@@ -155,6 +161,7 @@ export default function Home() {
             selectedNote={selectedNote}
             setSelectedNote={setSelectedNote}
             searchTerm={searchTerm}
+            onNotesUpdate={() => setNotesUpdateTrigger(prev => prev + 1)}
           />
           
           <main className="flex-1 p-6">
@@ -164,6 +171,7 @@ export default function Home() {
                 selectedNote={selectedNote}
                 setSelectedNote={setSelectedNote}
                 searchTerm={searchTerm}
+                onNoteSaved={handleNoteSaved}
               />
             )}
             {activeView === 'kanban' && <KanbanBoard />}

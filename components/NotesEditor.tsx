@@ -40,6 +40,11 @@ export default function NotesEditor({
       setContent(selectedNote.content || '');
       setTags(selectedNote.tags || []);
       setIsPinned(selectedNote.is_pinned || false);
+      
+      // Update the contentEditable element
+      if (editorRef.current) {
+        editorRef.current.innerHTML = selectedNote.content || '';
+      }
     }
   }, [selectedNote]);
 

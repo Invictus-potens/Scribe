@@ -21,7 +21,7 @@ export default function Home() {
   const [selectedNote, setSelectedNote] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [notesUpdateTrigger, setNotesUpdateTrigger] = useState(0);
-  const [notes, setNotes] = useState([]);
+  const [notes, setNotes] = useState<any[]>([]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');

@@ -14,11 +14,21 @@ interface Event {
   color: string;
 }
 
+const EVENT_COLORS = [
+  { name: 'Blue', value: 'blue', class: 'bg-blue-500' },
+  { name: 'Red', value: 'red', class: 'bg-red-500' },
+  { name: 'Green', value: 'green', class: 'bg-green-500' },
+  { name: 'Yellow', value: 'yellow', class: 'bg-yellow-500' },
+  { name: 'Purple', value: 'purple', class: 'bg-purple-500' },
+  { name: 'Pink', value: 'pink', class: 'bg-pink-500' },
+  { name: 'Indigo', value: 'indigo', class: 'bg-indigo-500' },
+  { name: 'Gray', value: 'gray', class: 'bg-gray-500' },
+];
+
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [newEvent, setNewEvent] = useState({
@@ -27,10 +37,52 @@ export default function Calendar() {
     time: '',
     description: '',
     reminder: false,
-    color: 'bg-blue-500'
+    color: 'blue'
   });
-
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<'default' | 'granted' | 'denied'>('default');
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          setNotificationPermission(permission);
+        });
+      }
+    }
+  }, []);
+
+  // Check for upcoming reminders
+  useEffect(() => {
+    const checkReminders = () => {
+      const now = new Date();
+      events.forEach(event => {
+        if (event.reminder && event.date && event.time) {
+          const eventDate = new Date(`${event.date}T${event.time}:00`);
+          const reminderTime = new Date(eventDate.getTime() - 15 * 60 * 1000); // 15 minutes before
+          
+          if (now >= reminderTime && now <= eventDate) {
+            showNotification(event);
+          }
+        }
+      });
+    };
+
+    const interval = setInterval(checkReminders, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [events]);
+
+  const showNotification = (event: Event) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('Event Reminder', {
+        body: `${event.title} starts in 15 minutes`,
+        icon: '/favicon.ico',
+        tag: event.id, // Prevents duplicate notifications
+      });
+    }
+  };
 
   // Load events from database
   useEffect(() => {
@@ -63,7 +115,7 @@ export default function Calendar() {
           time: new Date(event.start_date).toTimeString().slice(0, 5),
           description: event.description || '',
           reminder: event.reminder_set || false,
-          color: event.color ? `bg-${event.color}-500` : 'bg-blue-500'
+          color: event.color || 'blue'
         }));
 
         setEvents(convertedEvents);
@@ -92,10 +144,12 @@ export default function Calendar() {
 
     const days = [];
 
+    // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
 
+    // Add all days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(day);
     }
@@ -134,7 +188,7 @@ export default function Calendar() {
         title: newEvent.title,
         description: newEvent.description,
         start_date: startDate.toISOString(),
-        color: newEvent.color.replace('bg-', '').replace('-500', ''),
+        color: newEvent.color,
         reminder_set: newEvent.reminder,
         reminder_minutes: newEvent.reminder ? 15 : undefined
       };
@@ -153,7 +207,7 @@ export default function Calendar() {
         time: new Date(data.start_date).toTimeString().slice(0, 5),
         description: data.description || '',
         reminder: data.reminder_set || false,
-        color: data.color ? `bg-${data.color}-500` : 'bg-blue-500'
+        color: data.color || 'blue'
       };
 
       setEvents([...events, event]);
@@ -164,7 +218,7 @@ export default function Calendar() {
         time: '',
         description: '',
         reminder: false,
-        color: 'bg-blue-500'
+        color: 'blue'
       });
     } catch (error) {
       console.error('Error creating event:', error);
@@ -186,6 +240,14 @@ export default function Calendar() {
 
   const handleMicrosoftAuth = () => {
     setIsAuthenticated(true);
+  };
+
+  const requestNotificationPermission = () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().then(permission => {
+        setNotificationPermission(permission);
+      });
+    }
   };
 
   const days = getDaysInMonth(currentDate);
@@ -233,6 +295,16 @@ export default function Calendar() {
               <i className="ri-check-line w-4 h-4 flex items-center justify-center"></i>
               <span>Microsoft Connected</span>
             </div>
+          )}
+
+          {notificationPermission !== 'granted' && (
+            <button
+              onClick={requestNotificationPermission}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
+            >
+              <i className="ri-notification-line w-4 h-4 flex items-center justify-center"></i>
+              <span>Enable Notifications</span>
+            </button>
           )}
 
           <button
@@ -289,15 +361,18 @@ export default function Calendar() {
                 </div>
 
                 <div className="space-y-1">
-                  {dayEvents.slice(0, 3).map(event => (
-                    <div
-                      key={event.id}
-                      className={'text-xs p-1 rounded text-white truncate ' + event.color}
-                      title={event.title}
-                    >
-                      {event.time && event.time + ' '}{event.title}
-                    </div>
-                  ))}
+                  {dayEvents.slice(0, 3).map(event => {
+                    const colorClass = EVENT_COLORS.find(c => c.value === event.color)?.class || 'bg-blue-500';
+                    return (
+                      <div
+                        key={event.id}
+                        className={'text-xs p-1 rounded text-white truncate ' + colorClass}
+                        title={event.title}
+                      >
+                        {event.time && event.time + ' '}{event.title}
+                      </div>
+                    );
+                  })}
                   {dayEvents.length > 3 && (
                     <div className="text-xs text-gray-500 px-1">
                       +{dayEvents.length - 3} more
@@ -330,34 +405,37 @@ export default function Calendar() {
           </div>
 
           <div className="space-y-2">
-            {getEventsForDate(parseInt(selectedDate.split('-')[2])).map(event => (
-              <div key={event.id} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <div className={'w-2 h-2 rounded-full ' + event.color}></div>
-                      <h4 className="font-medium text-gray-800 dark:text-gray-200 text-sm">
-                        {event.title}
-                      </h4>
-                    </div>
-                    {event.time && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                        {event.time}
+            {getEventsForDate(parseInt(selectedDate.split('-')[2])).map(event => {
+              const colorClass = EVENT_COLORS.find(c => c.value === event.color)?.class || 'bg-blue-500';
+              return (
+                <div key={event.id} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <div className={'w-2 h-2 rounded-full ' + colorClass}></div>
+                        <h4 className="font-medium text-gray-800 dark:text-gray-200 text-sm">
+                          {event.title}
+                        </h4>
+                      </div>
+                      {event.time && (
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                          {event.time}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {event.description}
                       </p>
-                    )}
-                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {event.description}
-                    </p>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteEvent(event.id)}
+                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                    >
+                      <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center text-gray-500"></i>
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleDeleteEvent(event.id)}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                  >
-                    <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center text-gray-500"></i>
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {getEventsForDate(parseInt(selectedDate.split('-')[2])).length === 0 && (
               <p className="text-sm text-gray-500 text-center py-4">No events on this day</p>
@@ -368,7 +446,7 @@ export default function Calendar() {
 
       {showEventModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Create New Event</h3>
 
             <div className="space-y-4">
@@ -416,6 +494,26 @@ export default function Calendar() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event Color</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {EVENT_COLORS.map(color => (
+                    <button
+                      key={color.value}
+                      onClick={() => setNewEvent({ ...newEvent, color: color.value })}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        newEvent.color === color.value
+                          ? 'border-gray-800 dark:border-gray-200 scale-105'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className={`w-full h-6 rounded ${color.class}`}></div>
+                      <span className="text-xs mt-1 block text-gray-700 dark:text-gray-300">{color.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-center space-x-3">
                 <input
                   type="checkbox"
@@ -425,9 +523,17 @@ export default function Calendar() {
                   className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                 />
                 <label htmlFor="reminder" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Set reminder
+                  Set reminder (15 minutes before)
                 </label>
               </div>
+
+              {newEvent.reminder && notificationPermission !== 'granted' && (
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    Please enable notifications to receive reminders.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3 mt-6">

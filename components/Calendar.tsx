@@ -418,62 +418,76 @@ export default function Calendar() {
         </div>
 
         <div className="grid grid-cols-7 gap-2 flex-1">
-          {days.map((day, index) => {
-            if (day === null) {
-              return <div key={index} className="p-2"></div>;
-            }
+  {days.map((day, index) => {
+    if (day === null) {
+      return <div key={`empty-${index}`} className="p-2"></div>;
+    }
 
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const dayStr = String(day).padStart(2, '0');
-            const dateStr = year + '-' + month + '-' + dayStr;
-            const dayEvents = getEventsForDate(day);
-            const isToday = dateStr === todayStr;
-            const isSelected = selectedDate === dateStr;
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const dateStr = `${year}-${month}-${dayStr}`;
+    const dayEvents = getEventsForDate(day);
+    const isToday = dateStr === todayStr;
+    const isSelected = selectedDate === dateStr;
 
+    // Função para determinar as classes CSS do dia
+    const getDayClasses = () => {
+      const baseClasses = 'p-2 min-h-[120px] border rounded-lg cursor-pointer transition-colors';
+      
+      if (isToday) {
+        return `${baseClasses} bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700`;
+      }
+      
+      if (isSelected) {
+        return `${baseClasses} bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600`;
+      }
+      
+      return `${baseClasses} bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750`;
+    };
+
+    // Função para determinar as classes do número do dia
+    const getDayNumberClasses = () => {
+      const baseClasses = 'text-sm font-medium mb-1';
+      
+      return isToday 
+        ? `${baseClasses} text-blue-600 dark:text-blue-400`
+        : `${baseClasses} text-gray-700 dark:text-gray-300`;
+    };
+
+    return (
+      <div
+        key={`day-${day}`}
+        onClick={() => setSelectedDate(dateStr)}
+        className={getDayClasses()}
+      >
+        <div className={getDayNumberClasses()}>
+          {day}
+        </div>
+
+        <div className="space-y-1">
+          {dayEvents.slice(0, 3).map(event => {
+            const colorClass = EVENT_COLORS.find(c => c.value === event.color)?.class || 'bg-blue-500';
             return (
               <div
-                key={day}
-                onClick={() => setSelectedDate(dateStr)}
-                className={'p-2 min-h-[120px] border rounded-lg cursor-pointer transition-colors ' + (
-                  isToday
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
-                    : isSelected
-                    ? 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'
-                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750'
-                )}
+                key={event.id}
+                className={`text-xs p-1 rounded text-white truncate ${colorClass}`}
+                title={`${event.time ? event.time + ' - ' : ''}${event.title}`}
               >
-                <div className={'text-sm font-medium mb-1 ' + (
-                  isToday
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-gray-700 dark:text-gray-300'
-                )}>
-                  {day}
-                </div>
-
-                <div className="space-y-1">
-                  {dayEvents.slice(0, 3).map(event => {
-                    const colorClass = EVENT_COLORS.find(c => c.value === event.color)?.class || 'bg-blue-500';
-                    return (
-                      <div
-                        key={event.id}
-                        className={'text-xs p-1 rounded text-white truncate ' + colorClass}
-                        title={event.title}
-                      >
-                        {event.time && event.time + ' '}{event.title}
-                      </div>
-                    );
-                  })}
-                  {dayEvents.length > 3 && (
-                    <div className="text-xs text-gray-500 px-1">
-                      +{dayEvents.length - 3} more
-                    </div>
-                  )}
-                </div>
+                {event.time && `${event.time} `}{event.title}
               </div>
             );
           })}
+          {dayEvents.length > 3 && (
+            <div className="text-xs text-gray-500 px-1">
+              +{dayEvents.length - 3} more
+            </div>
+          )}
         </div>
+      </div>
+    );
+  })}
+</div>
       </div>
 
       {selectedDate && (

@@ -294,7 +294,9 @@ export default function NotesEditor({
               setContent(editorRef.current?.innerHTML || '');
               handleSave();
             }}
-            dangerouslySetInnerHTML={{ __html: content }}
+            onInput={() => {
+              setContent(editorRef.current?.innerHTML || '');
+            }}
             suppressContentEditableWarning={true}
           />
 

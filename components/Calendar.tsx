@@ -161,13 +161,16 @@ export default function Calendar() {
     const year = date.getFullYear();
     const month = date.getMonth();
     
-    // Get the first day of the month
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
+    // Create dates using local time to avoid timezone issues
+    const firstDayOfMonth = new Date(year, month, 1, 12, 0, 0); // Use noon to avoid timezone edge cases
+    const lastDayOfMonth = new Date(year, month + 1, 0, 12, 0, 0);
     
     // Get the day of week for the first day (0 = Sunday, 1 = Monday, etc.)
     const firstDayOfWeek = firstDayOfMonth.getDay();
     const daysInMonth = lastDayOfMonth.getDate();
+
+    // Debug log
+    console.log(`Month: ${month + 1}/${year}, First day: ${firstDayOfMonth.toDateString()}, First day of week: ${firstDayOfWeek}, Days in month: ${daysInMonth}`);
 
     const days = [];
 
@@ -181,6 +184,9 @@ export default function Calendar() {
       days.push(day);
     }
 
+    // Debug log for the final array
+    console.log('Days array:', days);
+    
     return days;
   };
 
@@ -193,11 +199,15 @@ export default function Calendar() {
   };
 
   const handlePrevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1);
+    console.log('Previous month:', newDate.toDateString());
+    setCurrentDate(newDate);
   };
 
   const handleNextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1);
+    console.log('Next month:', newDate.toDateString());
+    setCurrentDate(newDate);
   };
 
   const handleCreateEvent = async () => {

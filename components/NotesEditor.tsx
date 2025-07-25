@@ -184,7 +184,7 @@ export default function NotesEditor({
   // Passar a função de salvar para o componente pai apenas uma vez
   useEffect(() => {
     if (setSaveNoteRef) {
-      setSaveNoteRef(() => saveFunctionRef.current || (async () => {}));
+      setSaveNoteRef(saveFunctionRef.current || (async () => {}));
     }
   }, [setSaveNoteRef]);
 

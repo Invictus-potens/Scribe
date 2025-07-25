@@ -11,6 +11,7 @@ interface Event {
   time: string;
   description: string;
   reminder: boolean;
+  reminderMinutes?: number;
   color: string;
 }
 
@@ -25,6 +26,16 @@ const EVENT_COLORS = [
   { name: 'Gray', value: 'gray', class: 'bg-gray-500' },
 ];
 
+const REMINDER_OPTIONS = [
+  { label: '5 minutes before', value: 5 },
+  { label: '10 minutes before', value: 10 },
+  { label: '15 minutes before', value: 15 },
+  { label: '30 minutes before', value: 30 },
+  { label: '1 hour before', value: 60 },
+  { label: '2 hours before', value: 120 },
+  { label: '1 day before', value: 1440 },
+];
+
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
@@ -37,6 +48,7 @@ export default function Calendar() {
     time: '',
     description: '',
     reminder: false,
+    reminderMinutes: 15,
     color: 'blue'
   });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -61,7 +73,7 @@ export default function Calendar() {
       events.forEach(event => {
         if (event.reminder && event.date && event.time) {
           const eventDate = new Date(`${event.date}T${event.time}:00`);
-          const reminderTime = new Date(eventDate.getTime() - 15 * 60 * 1000); // 15 minutes before
+          const reminderTime = new Date(eventDate.getTime() - (event.reminderMinutes || 15) * 60 * 1000);
           
           if (now >= reminderTime && now <= eventDate) {
             showNotification(event);
@@ -76,8 +88,18 @@ export default function Calendar() {
 
   const showNotification = (event: Event) => {
     if ('Notification' in window && Notification.permission === 'granted') {
+      const reminderText = event.reminderMinutes === 1 
+        ? '1 minute' 
+        : event.reminderMinutes === 60 
+        ? '1 hour' 
+        : event.reminderMinutes === 120 
+        ? '2 hours' 
+        : event.reminderMinutes === 1440 
+        ? '1 day' 
+        : `${event.reminderMinutes} minutes`;
+        
       new Notification('Event Reminder', {
-        body: `${event.title} starts in 15 minutes`,
+        body: `${event.title} starts in ${reminderText}`,
         icon: '/favicon.ico',
         tag: event.id, // Prevents duplicate notifications
       });
@@ -115,6 +137,7 @@ export default function Calendar() {
           time: new Date(event.start_date).toTimeString().slice(0, 5),
           description: event.description || '',
           reminder: event.reminder_set || false,
+          reminderMinutes: event.reminder_minutes || 15,
           color: event.color || 'blue'
         }));
 
@@ -137,15 +160,19 @@ export default function Calendar() {
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
+    
+    // Get the first day of the month
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    
+    // Get the day of week for the first day (0 = Sunday, 1 = Monday, etc.)
+    const firstDayOfWeek = firstDayOfMonth.getDay();
+    const daysInMonth = lastDayOfMonth.getDate();
 
     const days = [];
 
     // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
+    for (let i = 0; i < firstDayOfWeek; i++) {
       days.push(null);
     }
 
@@ -190,7 +217,7 @@ export default function Calendar() {
         start_date: startDate.toISOString(),
         color: newEvent.color,
         reminder_set: newEvent.reminder,
-        reminder_minutes: newEvent.reminder ? 15 : undefined
+        reminder_minutes: newEvent.reminder ? newEvent.reminderMinutes : undefined
       };
 
       const { data, error } = await calendarHelpers.createEvent(calendarEvent);
@@ -207,6 +234,7 @@ export default function Calendar() {
         time: new Date(data.start_date).toTimeString().slice(0, 5),
         description: data.description || '',
         reminder: data.reminder_set || false,
+        reminderMinutes: data.reminder_minutes || 15,
         color: data.color || 'blue'
       };
 
@@ -218,6 +246,7 @@ export default function Calendar() {
         time: '',
         description: '',
         reminder: false,
+        reminderMinutes: 15,
         color: 'blue'
       });
     } catch (error) {
@@ -523,9 +552,26 @@ export default function Calendar() {
                   className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                 />
                 <label htmlFor="reminder" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Set reminder (15 minutes before)
+                  Set reminder
                 </label>
               </div>
+
+              {newEvent.reminder && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reminder Time</label>
+                  <select
+                    value={newEvent.reminderMinutes}
+                    onChange={(e) => setNewEvent({ ...newEvent, reminderMinutes: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  >
+                    {REMINDER_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {newEvent.reminder && notificationPermission !== 'granted' && (
                 <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">

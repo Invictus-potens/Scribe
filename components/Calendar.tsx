@@ -163,31 +163,25 @@ export default function Calendar() {
     const year = date.getFullYear();
     const month = date.getMonth();
     
-    // Create dates using local time to avoid timezone issues
-    const firstDayOfMonth = new Date(year, month, 1, 12, 0, 0); // Use noon to avoid timezone edge cases
-    const lastDayOfMonth = new Date(year, month + 1, 0, 12, 0, 0);
+    // Usar construtor simples sem especificar horas
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
     
     // Get the day of week for the first day (0 = Sunday, 1 = Monday, etc.)
     const firstDayOfWeek = firstDayOfMonth.getDay();
     const daysInMonth = lastDayOfMonth.getDate();
-
-    // Debug log
-    console.log(`Month: ${month + 1}/${year}, First day: ${firstDayOfMonth.toDateString()}, First day of week: ${firstDayOfWeek}, Days in month: ${daysInMonth}`);
-
+  
     const days = [];
-
+  
     // Add empty cells for days before the first day of the month
     for (let i = 0; i < firstDayOfWeek; i++) {
       days.push(null);
     }
-
+  
     // Add all days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(day);
     }
-
-    // Debug log for the final array
-    console.log('Days array:', days);
     
     return days;
   };

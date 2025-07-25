@@ -123,7 +123,7 @@ export default function NotesEditor({
   const formatText = (command: string) => {
     if (editorRef.current) {
       editorRef.current.focus();
-      document.execCommand(command, false, null);
+      document.execCommand(command, false, undefined);
       setIsFormatting(true);
       setTimeout(() => setIsFormatting(false), 200);
     }
@@ -132,7 +132,7 @@ export default function NotesEditor({
   const insertList = (type: 'ul' | 'ol') => {
     if (editorRef.current) {
       editorRef.current.focus();
-      document.execCommand(`insert${type === 'ul' ? 'UnorderedList' : 'OrderedList'}`, false, null);
+      document.execCommand(`insert${type === 'ul' ? 'UnorderedList' : 'OrderedList'}`, false, undefined);
     }
   };
 

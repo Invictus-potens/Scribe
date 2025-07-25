@@ -56,6 +56,9 @@ export default function NotesEditor({
   const hasUnsavedChanges = globalHasUnsavedChanges || localHasUnsavedChanges;
   const setHasUnsavedChanges = setGlobalHasUnsavedChanges || setLocalHasUnsavedChanges;
 
+  // Ref para armazenar a função de salvar
+  const saveFunctionRef = useRef<(() => Promise<void>) | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -93,32 +96,6 @@ export default function NotesEditor({
     },
   }, [isClient]);
 
-  useEffect(() => {
-    if (selectedNote && editor) {
-      setTitle(selectedNote.title || '');
-      setTags(selectedNote.tags || []);
-      setIsPinned(selectedNote.is_pinned || false);
-      setHasUnsavedChanges(false);
-      
-      // Update editor content
-      editor.commands.setContent(selectedNote.content || '');
-    }
-  }, [selectedNote, editor, setHasUnsavedChanges]);
-
-  // Verificar mudanças não salvas ao fechar a página
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = 'Você tem mudanças não salvas. Tem certeza que deseja sair?';
-        return 'Você tem mudanças não salvas. Tem certeza que deseja sair?';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
-
   // Verificar se há mudanças reais comparando com o conteúdo original
   const checkForRealChanges = useCallback(() => {
     if (!selectedNote || !editor) return false;
@@ -137,23 +114,6 @@ export default function NotesEditor({
            currentTags !== originalTags || 
            currentPinned !== originalPinned;
   }, [selectedNote, editor, title, tags, isPinned]);
-
-  // Verificar mudanças quando título, tags ou pin mudarem
-  useEffect(() => {
-    if (selectedNote && editor) {
-      const hasRealChanges = checkForRealChanges();
-      if (hasRealChanges !== hasUnsavedChanges) {
-        setHasUnsavedChanges(hasRealChanges);
-      }
-    }
-  }, [checkForRealChanges, hasUnsavedChanges, selectedNote, editor]);
-
-  // Passar a função de salvar para o componente pai (executa apenas uma vez)
-  useEffect(() => {
-    if (setSaveNoteRef) {
-      setSaveNoteRef(handleSave);
-    }
-  }, [setSaveNoteRef]); // Removido handleSave das dependências
 
   const handleSave = useCallback(async () => {
     if (!selectedNote) return;
@@ -216,7 +176,53 @@ export default function NotesEditor({
     }
   }, [selectedNote, editor, title, tags, isPinned, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved]);
 
+  // Atualizar o ref da função de salvar sempre que handleSave mudar
+  useEffect(() => {
+    saveFunctionRef.current = handleSave;
+  }, [handleSave]);
 
+  // Passar a função de salvar para o componente pai apenas uma vez
+  useEffect(() => {
+    if (setSaveNoteRef) {
+      setSaveNoteRef(() => saveFunctionRef.current || (async () => {}));
+    }
+  }, [setSaveNoteRef]);
+
+  useEffect(() => {
+    if (selectedNote && editor) {
+      setTitle(selectedNote.title || '');
+      setTags(selectedNote.tags || []);
+      setIsPinned(selectedNote.is_pinned || false);
+      setHasUnsavedChanges(false);
+      
+      // Update editor content
+      editor.commands.setContent(selectedNote.content || '');
+    }
+  }, [selectedNote, editor, setHasUnsavedChanges]);
+
+  // Verificar mudanças não salvas ao fechar a página
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'Você tem mudanças não salvas. Tem certeza que deseja sair?';
+        return 'Você tem mudanças não salvas. Tem certeza que deseja sair?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Verificar mudanças quando título, tags ou pin mudarem
+  useEffect(() => {
+    if (selectedNote && editor) {
+      const hasRealChanges = checkForRealChanges();
+      if (hasRealChanges !== hasUnsavedChanges) {
+        setHasUnsavedChanges(hasRealChanges);
+      }
+    }
+  }, [checkForRealChanges, hasUnsavedChanges, selectedNote, editor, setHasUnsavedChanges]);
 
   const handleSaveContent = async (content: string) => {
     if (!selectedNote || !selectedNote.id) return;

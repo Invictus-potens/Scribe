@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { notesHelpers, foldersHelpers, authHelpers, Note, Folder } from '../lib/supabase';
 
 interface SidebarProps {
@@ -36,8 +36,8 @@ export default function Sidebar({
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
-  // Function to reload notes
-  const reloadNotes = async () => {
+  // Function to reload notes - wrapped in useCallback to prevent unnecessary re-renders
+  const reloadNotes = useCallback(async () => {
     try {
       const { user } = await authHelpers.getCurrentUser();
       if (!user) return;
@@ -54,7 +54,7 @@ export default function Sidebar({
     } catch (error) {
       console.error('Error reloading notes:', error);
     }
-  };
+  }, [onNotesLoaded]);
 
   // Load data from Supabase
   useEffect(() => {
@@ -81,12 +81,15 @@ export default function Sidebar({
     };
 
     loadData();
-  }, []);
+  }, [reloadNotes]);
 
-  // Reload notes when parent component triggers update
+  // Reload notes when parent component triggers update - using a ref to track updates
   useEffect(() => {
-    reloadNotes();
-  }, [onNotesUpdate]);
+    if (onNotesUpdate) {
+      // Only reload if we have a valid onNotesUpdate function
+      reloadNotes();
+    }
+  }, [reloadNotes]);
 
   // Função para remover tags HTML e extrair texto puro
   const stripHtml = (html: string) => {
@@ -99,67 +102,46 @@ export default function Sidebar({
   const filteredNotes = notes.filter(note => {
     const matchesFolder = selectedFolder === 'all' || note.folder === selectedFolder;
     const matchesSearch = !searchTerm || 
-      note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stripHtml(note.content).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (note.tags && note.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
+      note.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      stripHtml(note.content || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
     return matchesFolder && matchesSearch;
-  }).sort((a, b) => {
-    if (a.is_pinned && !b.is_pinned) return -1;
-    if (!a.is_pinned && b.is_pinned) return 1;
-    return new Date(b.updated_at || '').getTime() - new Date(a.updated_at || '').getTime();
   });
 
   const handleNewFolder = async () => {
-    if (newFolderName.trim()) {
-      try {
-        const { user } = await authHelpers.getCurrentUser();
-        if (!user) return;
+    if (!newFolderName.trim()) return;
 
-        // Mostrar loading no botão
-        const createButton = document.querySelector('[data-action="create-folder"]') as HTMLButtonElement;
-        if (createButton) {
-          createButton.disabled = true;
-          createButton.innerHTML = 'Criando...';
-        }
+    try {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) return;
 
-        const { data, error } = await foldersHelpers.createFolder({
-          name: newFolderName,
-          user_id: user.id
-        });
+      const { data, error } = await foldersHelpers.createFolder({
+        name: newFolderName.trim(),
+        user_id: user.id,
+      });
 
-        if (error) {
-          console.error('Error creating folder:', error);
-          return;
-        }
-
-        setFolders([...folders, data]);
+      if (error) {
+        console.error('Error creating folder:', error);
+        alert(`Error creating folder: ${error.message}`);
+      } else {
+        setFolders(prev => [...prev, data]);
         setNewFolderName('');
         setShowNewFolderModal(false);
-      } catch (error) {
-        console.error('Error creating folder:', error);
-      } finally {
-        // Restaurar botão
-        const createButton = document.querySelector('[data-action="create-folder"]') as HTMLButtonElement;
-        if (createButton) {
-          createButton.disabled = false;
-          createButton.innerHTML = 'Create';
-        }
       }
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      alert('An unexpected error occurred while creating the folder');
     }
   };
 
   const handleNewNote = () => {
     const createNewNote = () => {
       const newNote = {
-        id: '',
-        title: 'Untitled Note',
+        title: 'Nova Nota',
         content: '',
-        folder: selectedFolder === 'all' ? undefined : selectedFolder,
         tags: [],
         is_pinned: false,
-        user_id: '',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        folder: selectedFolder !== 'all' ? selectedFolder : undefined,
       };
       setSelectedNote(newNote);
     };
@@ -171,222 +153,262 @@ export default function Sidebar({
     }
   };
 
-  if (activeView !== 'notes') {
-    return null;
+  const handleDeleteFolder = async (folderName: string) => {
+    if (!confirm(`Tem certeza que deseja deletar a pasta "${folderName}"? Todas as notas nesta pasta serão movidas para "Todas as Notas".`)) {
+      return;
+    }
+
+    try {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) return;
+
+      // Delete folder and move notes to "all"
+      const { error: folderError } = await foldersHelpers.deleteFolder(folderName);
+      if (folderError) {
+        console.error('Error deleting folder:', folderError);
+        alert(`Error deleting folder: ${folderError.message}`);
+        return;
+      }
+
+      // Update folders list
+      setFolders(prev => prev.filter(folder => folder.name !== folderName));
+
+      // If the deleted folder was selected, switch to "all"
+      if (selectedFolder === folderName) {
+        setSelectedFolder('all');
+      }
+
+      // Reload notes to reflect the changes
+      await reloadNotes();
+    } catch (error) {
+      console.error('Error deleting folder:', error);
+      alert('An unexpected error occurred while deleting the folder');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4">
+        <div className="flex items-center justify-center h-32">
+          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+            <i className="ri-loader-4-line w-4 h-4 text-white animate-spin"></i>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen overflow-hidden flex flex-col">
+    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <button
-          onClick={handleNewNote}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2 whitespace-nowrap"
-        >
-          <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-          <span>New Note</span>
-        </button>
-      </div>
-
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Folders</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Notas</h2>
           <button
-            onClick={() => setShowNewFolderModal(true)}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+            onClick={handleNewNote}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
           >
-            <i className="ri-add-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
+            Nova Nota
           </button>
         </div>
+        
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowNewFolderModal(true)}
+            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+          >
+            Nova Pasta
+          </button>
+        </div>
+      </div>
 
-        <div className="space-y-1">
+      {/* Folders and Notes */}
+      <div className="flex-1 overflow-y-auto">
+        {/* All Notes */}
+        <div className="p-4">
           <button
             onClick={() => {
               const selectAllNotes = () => setSelectedFolder('all');
-              
               if (onCheckUnsavedChanges) {
                 onCheckUnsavedChanges(selectAllNotes);
               } else {
                 selectAllNotes();
               }
             }}
-            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap ${
-              selectedFolder === 'all' 
-                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+            className={`w-full text-left p-3 rounded-lg transition-colors ${
+              selectedFolder === 'all'
+                ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
             }`}
           >
-            <i className="ri-folder-line w-4 h-4 flex items-center justify-center"></i>
-            <span className="flex-1">All Notes</span>
-            <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
-              {notes.length}
-            </span>
-          </button>
-
-                     {folders.map(folder => (
-             <div
-               key={folder.id}
-               className={`group w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap ${
-                 selectedFolder === folder.name 
-                   ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
-                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-               }`}
-             >
-               <button
-                 onClick={() => {
-                   const selectFolder = () => setSelectedFolder(folder.name);
-                   
-                   if (onCheckUnsavedChanges) {
-                     onCheckUnsavedChanges(selectFolder);
-                   } else {
-                     selectFolder();
-                   }
-                 }}
-                 className="flex items-center space-x-3 flex-1"
-               >
-                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                 <span className="flex-1">{folder.name}</span>
-                 <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
-                   {notes.filter(note => note.folder === folder.name).length}
-                 </span>
-               </button>
-               <button
-                 onClick={async (event) => {
-                   if (confirm(`Tem certeza que deseja deletar a pasta "${folder.name}"? Todas as notas nesta pasta serão movidas para "All Notes".`)) {
-                     try {
-                       // Mostrar loading
-                       const button = event?.target as HTMLButtonElement;
-                       const originalContent = button.innerHTML;
-                       button.innerHTML = '<i class="ri-loader-4-line w-3 h-3 flex items-center justify-center animate-spin"></i>';
-                       button.disabled = true;
-                       
-                       // Move all notes from this folder to "All Notes" (remove folder) - em paralelo
-                       const notesInFolder = notes.filter(note => note.folder === folder.name);
-                       const updatePromises = notesInFolder.map(note => 
-                         notesHelpers.updateNote(note.id, { ...note, folder: undefined })
-                       );
-                       
-                       // Executar todas as atualizações em paralelo
-                       await Promise.all(updatePromises);
-                       
-                       // Delete the folder
-                       const { error } = await foldersHelpers.deleteFolder(folder.id);
-                       if (error) {
-                         console.error('Error deleting folder:', error);
-                         alert(`Error deleting folder: ${error.message}`);
-                       } else {
-                         setFolders(folders.filter(f => f.id !== folder.id));
-                         if (selectedFolder === folder.name) {
-                           setSelectedFolder('all');
-                         }
-                         // Reload notes to reflect changes
-                         await reloadNotes();
-                       }
-                     } catch (error) {
-                       console.error('Error deleting folder:', error);
-                       alert('An unexpected error occurred while deleting the folder');
-                     } finally {
-                       // Restaurar botão
-                       const button = event?.target as HTMLButtonElement;
-                       if (button) {
-                         button.innerHTML = '<i class="ri-delete-bin-line w-3 h-3 flex items-center justify-center"></i>';
-                         button.disabled = false;
-                       }
-                     }
-                   }
-                 }}
-                 className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors text-red-600 dark:text-red-400 opacity-0 group-hover:opacity-100"
-                 title="Delete Folder"
-               >
-                 <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center"></i>
-               </button>
-             </div>
-           ))}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-          {selectedFolder === 'all' ? 'All Notes' : folders.find(f => f.name === selectedFolder)?.name || 'Notes'}
-        </h3>
-
-        <div className="space-y-2">
-          {filteredNotes.map(note => (
-            <div
-              key={note.id}
-              onClick={() => {
-                const selectNote = () => setSelectedNote(note);
-                
-                if (onCheckUnsavedChanges) {
-                  onCheckUnsavedChanges(selectNote);
-                } else {
-                  selectNote();
-                }
-              }}
-              className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                selectedNote?.id === note.id
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-                  : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600'
-              }`}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <h4 className="font-medium text-gray-800 dark:text-gray-200 text-sm line-clamp-1">
-                  {note.title}
-                </h4>
-                {note.is_pinned && (
-                  <i className="ri-pushpin-fill w-3 h-3 flex items-center justify-center text-blue-500 ml-2"></i>
-                )}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <i className="ri-folder-line w-4 h-4"></i>
+                <span className="font-medium">Todas as Notas</span>
               </div>
-
-              <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
-                {stripHtml(note.content) || 'Sem conteúdo ainda...'}
-              </p>
-
-              <div className="flex items-center justify-between">
-                <div className="flex flex-wrap gap-1">
-                  {note.tags && note.tags.slice(0, 2).map(tag => (
-                    <span key={tag} className="text-xs bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">
-                      {tag}
-                    </span>
-                  ))}
-                  {note.tags && note.tags.length > 2 && (
-                    <span className="text-xs text-gray-500">+{note.tags.length - 2}</span>
-                  )}
-                </div>
-
-                <span className="text-xs text-gray-500">
-                  {new Date(note.updated_at || '').toLocaleDateString()}
-                </span>
-              </div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {notes.length}
+              </span>
             </div>
-          ))}
+          </button>
+        </div>
+
+        {/* Folders */}
+        {folders.map(folder => (
+          <div key={folder.name} className="px-4 mb-2">
+            <div className="flex items-center justify-between group">
+              <button
+                onClick={() => {
+                  const selectFolder = () => setSelectedFolder(folder.name);
+                  if (onCheckUnsavedChanges) {
+                    onCheckUnsavedChanges(selectFolder);
+                  } else {
+                    selectFolder();
+                  }
+                }}
+                className={`flex-1 text-left p-3 rounded-lg transition-colors ${
+                  selectedFolder === folder.name
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <i className="ri-folder-line w-4 h-4"></i>
+                    <span className="font-medium">{folder.name}</span>
+                  </div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {notes.filter(note => note.folder === folder.name).length}
+                  </span>
+                </div>
+              </button>
+              <button
+                onClick={() => handleDeleteFolder(folder.name)}
+                className="ml-2 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Deletar pasta"
+              >
+                <i className="ri-delete-bin-line w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* Notes List */}
+        <div className="p-4">
+          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">
+            {selectedFolder === 'all' ? 'Todas as Notas' : `Notas em "${selectedFolder}"`}
+          </h3>
+          
+          <div className="space-y-2">
+            {filteredNotes.length === 0 ? (
+              <div className="text-center py-8">
+                <i className="ri-file-text-line w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-2"></i>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  {searchTerm ? 'Nenhuma nota encontrada' : 'Nenhuma nota ainda'}
+                </p>
+              </div>
+            ) : (
+              filteredNotes
+                .sort((a, b) => {
+                  // Pinned notes first
+                  if (a.is_pinned && !b.is_pinned) return -1;
+                  if (!a.is_pinned && b.is_pinned) return 1;
+                  // Then by updated_at
+                  return new Date(b.updated_at || '').getTime() - new Date(a.updated_at || '').getTime();
+                })
+                .map(note => (
+                  <div
+                    key={note.id}
+                    onClick={() => {
+                      const selectNote = () => setSelectedNote(note);
+                      if (onCheckUnsavedChanges) {
+                        onCheckUnsavedChanges(selectNote);
+                      } else {
+                        selectNote();
+                      }
+                    }}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                      selectedNote?.id === note.id
+                        ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h4 className="font-medium text-sm truncate">
+                            {note.title || 'Sem título'}
+                          </h4>
+                          {note.is_pinned && (
+                            <i className="ri-pushpin-fill w-3 h-3 text-blue-600 dark:text-blue-400 flex-shrink-0"></i>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+                          {stripHtml(note.content || 'Sem conteúdo')}
+                        </p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-gray-400">
+                            {new Date(note.updated_at || '').toLocaleDateString()}
+                          </span>
+                          {note.tags && note.tags.length > 0 && (
+                            <div className="flex space-x-1">
+                              {note.tags.slice(0, 2).map(tag => (
+                                <span
+                                  key={tag}
+                                  className="text-xs bg-gray-200 dark:bg-gray-600 px-1 py-0.5 rounded"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {note.tags.length > 2 && (
+                                <span className="text-xs text-gray-400">
+                                  +{note.tags.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
         </div>
       </div>
 
+      {/* New Folder Modal */}
       {showNewFolderModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Create New Folder</h3>
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
+              Nova Pasta
+            </h3>
+            
             <input
               type="text"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
-              placeholder="Folder name"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
               onKeyPress={(e) => e.key === 'Enter' && handleNewFolder()}
+              placeholder="Nome da pasta"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 mb-4"
             />
-            <div className="flex justify-end space-x-3 mt-4">
-              <button
-                onClick={() => setShowNewFolderModal(false)}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors whitespace-nowrap"
-              >
-                Cancel
-              </button>
+            
+            <div className="flex space-x-3">
               <button
                 onClick={handleNewFolder}
-                data-action="create-folder"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors whitespace-nowrap"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
-                Create
+                Criar
+              </button>
+              <button
+                onClick={() => {
+                  setShowNewFolderModal(false);
+                  setNewFolderName('');
+                }}
+                className="flex-1 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-4 py-2 font-medium transition-colors"
+              >
+                Cancelar
               </button>
             </div>
           </div>

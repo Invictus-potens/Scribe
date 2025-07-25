@@ -97,9 +97,9 @@ export default function Home() {
   }, []);
 
   const toggleTheme = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    if (newDarkMode) {
+    const newTheme = !darkMode;
+    setDarkMode(newTheme);
+    if (newTheme) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
     } else {
@@ -109,14 +109,12 @@ export default function Home() {
   };
 
   const handleLogin = () => {
-    setIsAuthenticated(true);
-    setShowAuthModal(false);
+    setShowAuthModal(true);
   };
 
   const handleLogout = async () => {
     try {
       await authHelpers.signOut();
-      setIsAuthenticated(false);
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -136,8 +134,10 @@ export default function Home() {
           const { user } = await authHelpers.getCurrentUser();
           if (user) {
             // Chamar a função de salvar se disponível
-            if (saveNoteRef) {
+            if (saveNoteRef && typeof saveNoteRef === 'function') {
               await saveNoteRef();
+            } else {
+              console.warn('saveNoteRef não está disponível ou não é uma função');
             }
             console.log('Salvando nota antes de executar ação...');
           }
@@ -267,8 +267,10 @@ export default function Home() {
                     const { user } = await authHelpers.getCurrentUser();
                     if (user) {
                       // Chamar a função de salvar se disponível
-                      if (saveNoteRef) {
+                      if (saveNoteRef && typeof saveNoteRef === 'function') {
                         await saveNoteRef();
+                      } else {
+                        console.warn('saveNoteRef não está disponível ou não é uma função');
                       }
                       console.log('Nota salva com sucesso!');
                     }

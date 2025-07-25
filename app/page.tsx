@@ -51,6 +51,9 @@ export default function Home() {
     if (savedTheme === 'dark') {
       setDarkMode(true);
       document.documentElement.classList.add('dark');
+    } else {
+      setDarkMode(false);
+      document.documentElement.classList.remove('dark');
     }
   }, []);
 
@@ -93,8 +96,9 @@ export default function Home() {
   }, []);
 
   const toggleTheme = () => {
-    setDarkMode(!darkMode);
-    if (!darkMode) {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    if (newDarkMode) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
     } else {
@@ -176,7 +180,7 @@ export default function Home() {
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark' : ''}`}>
+    <div className="min-h-screen">
       <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
         <Header 
           activeView={activeView}

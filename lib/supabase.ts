@@ -123,6 +123,46 @@ export const authHelpers = {
   async getSession() {
     const { data: { session }, error } = await supabase.auth.getSession()
     return { session, error }
+  },
+
+  // New function to ensure user profile exists
+  async ensureUserProfile(userId: string, email: string, fullName?: string) {
+    try {
+      // Use the database function to ensure user profile exists
+      const { data, error } = await supabase
+        .rpc('ensure_user_profile', {
+          user_id: userId,
+          user_email: email,
+          user_full_name: fullName || null
+        });
+
+      if (error) {
+        console.error('Error ensuring user profile:', error);
+        return { error };
+      }
+
+      // If the database function returns false, it means there was an issue
+      if (data === false) {
+        return { error: { message: 'Failed to create user profile' } };
+      }
+
+      // Get the user profile to return
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+        return { error: profileError };
+      }
+
+      return { data: userProfile };
+    } catch (error) {
+      console.error('Unexpected error in ensureUserProfile:', error);
+      return { error: { message: 'Unexpected error ensuring user profile' } };
+    }
   }
 }
 
@@ -143,6 +183,23 @@ export const notesHelpers = {
   },
 
   async createNote(note: Omit<Note, 'id' | 'created_at' | 'updated_at'>) {
+    // Ensure user profile exists before creating note
+    const { user } = await authHelpers.getCurrentUser()
+    if (!user) {
+      return { error: { message: 'User not authenticated' } }
+    }
+
+    // Ensure user profile exists
+    const { error: profileError } = await authHelpers.ensureUserProfile(
+      user.id, 
+      user.email || '', 
+      user.user_metadata?.full_name
+    )
+    
+    if (profileError) {
+      return { error: profileError }
+    }
+
     const { data, error } = await supabase
       .from('notes')
       .insert([note])
@@ -181,6 +238,23 @@ export const foldersHelpers = {
   },
 
   async createFolder(folder: Omit<Folder, 'id' | 'created_at'>) {
+    // Ensure user profile exists before creating folder
+    const { user } = await authHelpers.getCurrentUser()
+    if (!user) {
+      return { error: { message: 'User not authenticated' } }
+    }
+
+    // Ensure user profile exists
+    const { error: profileError } = await authHelpers.ensureUserProfile(
+      user.id, 
+      user.email || '', 
+      user.user_metadata?.full_name
+    )
+    
+    if (profileError) {
+      return { error: profileError }
+    }
+
     const { data, error } = await supabase
       .from('folders')
       .insert([folder])
@@ -209,6 +283,23 @@ export const tagsHelpers = {
   },
 
   async createTag(tag: Omit<Tag, 'id' | 'created_at'>) {
+    // Ensure user profile exists before creating tag
+    const { user } = await authHelpers.getCurrentUser()
+    if (!user) {
+      return { error: { message: 'User not authenticated' } }
+    }
+
+    // Ensure user profile exists
+    const { error: profileError } = await authHelpers.ensureUserProfile(
+      user.id, 
+      user.email || '', 
+      user.user_metadata?.full_name
+    )
+    
+    if (profileError) {
+      return { error: profileError }
+    }
+
     const { data, error } = await supabase
       .from('tags')
       .insert([tag])
@@ -253,6 +344,23 @@ export const calendarHelpers = {
   },
 
   async createEvent(event: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'>) {
+    // Ensure user profile exists before creating event
+    const { user } = await authHelpers.getCurrentUser()
+    if (!user) {
+      return { error: { message: 'User not authenticated' } }
+    }
+
+    // Ensure user profile exists
+    const { error: profileError } = await authHelpers.ensureUserProfile(
+      user.id, 
+      user.email || '', 
+      user.user_metadata?.full_name
+    )
+    
+    if (profileError) {
+      return { error: profileError }
+    }
+
     const { data, error } = await supabase
       .from('calendar_events')
       .insert([event])
@@ -291,6 +399,23 @@ export const kanbanHelpers = {
   },
 
   async createBoard(board: Omit<KanbanBoard, 'id' | 'created_at' | 'updated_at'>) {
+    // Ensure user profile exists before creating board
+    const { user } = await authHelpers.getCurrentUser()
+    if (!user) {
+      return { error: { message: 'User not authenticated' } }
+    }
+
+    // Ensure user profile exists
+    const { error: profileError } = await authHelpers.ensureUserProfile(
+      user.id, 
+      user.email || '', 
+      user.user_metadata?.full_name
+    )
+    
+    if (profileError) {
+      return { error: profileError }
+    }
+
     const { data, error } = await supabase
       .from('kanban_boards')
       .insert([board])

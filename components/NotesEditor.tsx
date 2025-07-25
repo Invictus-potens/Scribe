@@ -44,7 +44,10 @@ export default function NotesEditor({
 
     try {
       const { user } = await authHelpers.getCurrentUser();
-      if (!user) return;
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
 
       const updatedNote = {
         ...selectedNote,
@@ -60,6 +63,7 @@ export default function NotesEditor({
         const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
         if (error) {
           console.error('Error updating note:', error);
+          alert(`Error updating note: ${error.message}`);
           return;
         }
         setSelectedNote(data);
@@ -75,12 +79,14 @@ export default function NotesEditor({
         });
         if (error) {
           console.error('Error creating note:', error);
+          alert(`Error creating note: ${error.message}`);
           return;
         }
         setSelectedNote(data);
       }
     } catch (error) {
       console.error('Error saving note:', error);
+      alert('An unexpected error occurred while saving the note');
     }
   };
 

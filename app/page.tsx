@@ -45,6 +45,7 @@ export default function Home() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [saveNoteRef, setSaveNoteRef] = useState<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -124,9 +125,23 @@ export default function Home() {
 
   const checkUnsavedChanges = (action: () => void) => {
     if (hasUnsavedChanges) {
-      // Em vez de usar confirm, vamos passar a ação para o NotesEditor
-      // O NotesEditor vai mostrar o modal personalizado
-      setPendingAction(() => action);
+      // Mostrar modal e executar ação após confirmação
+      setPendingAction(() => async () => {
+        // Salvar a nota atual antes de executar a ação
+        try {
+          const { user } = await authHelpers.getCurrentUser();
+          if (user) {
+            // Chamar a função de salvar se disponível
+            if (saveNoteRef) {
+              await saveNoteRef();
+            }
+            console.log('Salvando nota antes de executar ação...');
+          }
+        } catch (error) {
+          console.error('Error saving note:', error);
+        }
+        action();
+      });
       setShowUnsavedModal(true);
     } else {
       action();
@@ -213,17 +228,7 @@ export default function Home() {
                 notes={notes}
                 hasUnsavedChanges={hasUnsavedChanges}
                 setHasUnsavedChanges={setHasUnsavedChanges}
-                onUnsavedChangesConfirm={() => {
-                  if (pendingAction) {
-                    pendingAction();
-                    setPendingAction(null);
-                    setShowUnsavedModal(false);
-                  }
-                }}
-                onUnsavedChangesCancel={() => {
-                  setPendingAction(null);
-                  setShowUnsavedModal(false);
-                }}
+                setSaveNoteRef={setSaveNoteRef}
               />
             )}
             {activeView === 'kanban' && <KanbanBoard />}
@@ -237,7 +242,7 @@ export default function Home() {
       {showUnsavedModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
-            <div className="flex items-center mb-4">
+            <div className="flex items-center justify-center mb-4">
               <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center mr-3">
                 <i className="ri-alert-line w-5 h-5 text-yellow-600 dark:text-yellow-400"></i>
               </div>
@@ -252,7 +257,21 @@ export default function Home() {
             
             <div className="flex flex-col space-y-3">
               <button
-                onClick={() => {
+                onClick={async () => {
+                  // Salvar a nota atual antes de executar a ação
+                  try {
+                    const { user } = await authHelpers.getCurrentUser();
+                    if (user) {
+                      // Chamar a função de salvar se disponível
+                      if (saveNoteRef) {
+                        await saveNoteRef();
+                      }
+                      console.log('Nota salva com sucesso!');
+                    }
+                  } catch (error) {
+                    console.error('Error saving note:', error);
+                  }
+                  
                   setHasUnsavedChanges(false);
                   if (pendingAction) {
                     pendingAction();

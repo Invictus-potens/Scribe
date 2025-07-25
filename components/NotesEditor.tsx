@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -26,8 +26,7 @@ interface NotesEditorProps {
   notes?: any[];
   hasUnsavedChanges?: boolean;
   setHasUnsavedChanges?: (hasChanges: boolean) => void;
-  onUnsavedChangesConfirm?: () => void;
-  onUnsavedChangesCancel?: () => void;
+  setSaveNoteRef?: (fn: () => Promise<void>) => void;
 }
 
 export default function NotesEditor({ 
@@ -39,8 +38,7 @@ export default function NotesEditor({
   notes = [],
   hasUnsavedChanges: globalHasUnsavedChanges = false,
   setHasUnsavedChanges: setGlobalHasUnsavedChanges,
-  onUnsavedChangesConfirm,
-  onUnsavedChangesCancel
+  setSaveNoteRef
 }: NotesEditorProps) {
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -121,16 +119,8 @@ export default function NotesEditor({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  // Verificar mudanças quando título, tags ou pin mudarem
-  useEffect(() => {
-    if (selectedNote && editor) {
-      const hasRealChanges = checkForRealChanges();
-      setHasUnsavedChanges(hasRealChanges);
-    }
-  }, [title, tags, isPinned, selectedNote, editor]);
-
   // Verificar se há mudanças reais comparando com o conteúdo original
-  const checkForRealChanges = () => {
+  const checkForRealChanges = useCallback(() => {
     if (!selectedNote || !editor) return false;
     
     const currentContent = editor.getHTML();
@@ -146,39 +136,26 @@ export default function NotesEditor({
            currentTitle !== originalTitle || 
            currentTags !== originalTags || 
            currentPinned !== originalPinned;
-  };
+  }, [selectedNote, editor, title, tags, isPinned]);
 
-  const handleSaveContent = async (content: string) => {
-    if (!selectedNote || !selectedNote.id) return;
-
-    try {
-      const { user } = await authHelpers.getCurrentUser();
-      if (!user) {
-        console.error('User not authenticated');
-        return;
+  // Verificar mudanças quando título, tags ou pin mudarem
+  useEffect(() => {
+    if (selectedNote && editor) {
+      const hasRealChanges = checkForRealChanges();
+      if (hasRealChanges !== hasUnsavedChanges) {
+        setHasUnsavedChanges(hasRealChanges);
       }
-
-      const updatedNote = {
-        ...selectedNote,
-        content,
-      };
-
-      const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
-      if (error) {
-        console.error('Error updating note content:', error);
-        return;
-      }
-      setSelectedNote(data);
-      setHasUnsavedChanges(false);
-      if (onNoteSaved) {
-        onNoteSaved();
-      }
-    } catch (error) {
-      console.error('Error saving note content:', error);
     }
-  };
+  }, [checkForRealChanges, hasUnsavedChanges, selectedNote, editor]);
 
-  const handleSave = async () => {
+  // Passar a função de salvar para o componente pai (executa apenas uma vez)
+  useEffect(() => {
+    if (setSaveNoteRef) {
+      setSaveNoteRef(handleSave);
+    }
+  }, [setSaveNoteRef]); // Removido handleSave das dependências
+
+  const handleSave = useCallback(async () => {
     if (!selectedNote) return;
 
     try {
@@ -237,6 +214,38 @@ export default function NotesEditor({
       console.error('Error saving note:', error);
       alert('An unexpected error occurred while saving the note');
     }
+  }, [selectedNote, editor, title, tags, isPinned, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved]);
+
+
+
+  const handleSaveContent = async (content: string) => {
+    if (!selectedNote || !selectedNote.id) return;
+
+    try {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      const updatedNote = {
+        ...selectedNote,
+        content,
+      };
+
+      const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
+      if (error) {
+        console.error('Error updating note content:', error);
+        return;
+      }
+      setSelectedNote(data);
+      setHasUnsavedChanges(false);
+      if (onNoteSaved) {
+        onNoteSaved();
+      }
+    } catch (error) {
+      console.error('Error saving note content:', error);
+    }
   };
 
   const handleAddTag = () => {
@@ -290,24 +299,21 @@ export default function NotesEditor({
   const handleSaveAndExit = async () => {
     await handleSave();
     setShowExitModal(false);
-    if (onUnsavedChangesConfirm) {
-      onUnsavedChangesConfirm();
+    if (onNoteSaved) {
+      onNoteSaved();
     }
   };
 
   const handleDiscardAndExit = () => {
     setShowExitModal(false);
     setHasUnsavedChanges(false);
-    if (onUnsavedChangesConfirm) {
-      onUnsavedChangesConfirm();
+    if (onNoteSaved) {
+      onNoteSaved();
     }
   };
 
   const handleCancelExit = () => {
     setShowExitModal(false);
-    if (onUnsavedChangesCancel) {
-      onUnsavedChangesCancel();
-    }
   };
 
   if (!selectedNote) {

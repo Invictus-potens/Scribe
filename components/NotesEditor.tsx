@@ -28,7 +28,7 @@ export default function NotesEditor({
   const [newTag, setNewTag] = useState('');
   const [isPinned, setIsPinned] = useState(false);
   const [showSplitView, setShowSplitView] = useState(false);
-  const [secondNote, setSecondNote] = useState(null);
+  const [secondNote, setSecondNote] = useState<any>(null);
   const [showTagInput, setShowTagInput] = useState(false);
   const [isFormatting, setIsFormatting] = useState(false);
 

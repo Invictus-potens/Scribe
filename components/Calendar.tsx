@@ -42,6 +42,8 @@ export default function Calendar() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [newEvent, setNewEvent] = useState({
     title: '',
     date: '',
@@ -289,6 +291,62 @@ export default function Calendar() {
     }
   };
 
+  const handleEditEvent = (event: Event) => {
+    setEditingEvent({
+      ...event,
+      reminderMinutes: event.reminderMinutes || 15
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateEvent = async () => {
+    if (!editingEvent || !editingEvent.title.trim() || !editingEvent.date) return;
+
+    try {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) return;
+
+      // Create start date with time
+      const startDate = new Date(`${editingEvent.date}T${editingEvent.time}:00`);
+      
+      const calendarEvent: Partial<CalendarEvent> = {
+        title: editingEvent.title,
+        description: editingEvent.description,
+        start_date: startDate.toISOString(),
+        color: editingEvent.color,
+        reminder_set: editingEvent.reminder,
+        reminder_minutes: editingEvent.reminder ? editingEvent.reminderMinutes : undefined
+      };
+
+      const { data, error } = await calendarHelpers.updateEvent(editingEvent.id, calendarEvent);
+      if (error) {
+        console.error('Error updating event:', error);
+        return;
+      }
+
+      // Update the event in the local state
+      setEvents(events.map(event => 
+        event.id === editingEvent.id 
+          ? {
+              ...event,
+              title: editingEvent.title,
+              date: new Date(data.start_date).toISOString().split('T')[0],
+              time: new Date(data.start_date).toTimeString().slice(0, 5),
+              description: editingEvent.description,
+              reminder: editingEvent.reminder,
+              reminderMinutes: editingEvent.reminderMinutes,
+              color: editingEvent.color
+            }
+          : event
+      ));
+
+      setShowEditModal(false);
+      setEditingEvent(null);
+    } catch (error) {
+      console.error('Error updating event:', error);
+    }
+  };
+
   const days = getDaysInMonth(currentDate);
   const today = new Date();
   const todayYear = today.getFullYear();
@@ -465,12 +523,22 @@ export default function Calendar() {
                         {event.description}
                       </p>
                     </div>
-                    <button
-                      onClick={() => handleDeleteEvent(event.id)}
-                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                    >
-                      <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center text-gray-500"></i>
-                    </button>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => handleEditEvent(event)}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                        title="Edit event"
+                      >
+                        <i className="ri-edit-line w-3 h-3 flex items-center justify-center text-gray-500"></i>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEvent(event.id)}
+                        className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                        title="Delete event"
+                      >
+                        <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center text-gray-500"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -604,6 +672,136 @@ export default function Calendar() {
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors whitespace-nowrap"
               >
                 Create Event
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && editingEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Edit Event</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event Title</label>
+                <input
+                  type="text"
+                  value={editingEvent.title}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  placeholder="Enter event title"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={editingEvent.date}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, date: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time</label>
+                  <input
+                    type="time"
+                    value={editingEvent.time}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, time: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <textarea
+                  value={editingEvent.description}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  rows={3}
+                  placeholder="Event description"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event Color</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {EVENT_COLORS.map(color => (
+                    <button
+                      key={color.value}
+                      onClick={() => setEditingEvent({ ...editingEvent, color: color.value })}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        editingEvent.color === color.value
+                          ? 'border-gray-800 dark:border-gray-200 scale-105'
+                          : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <div className={`w-full h-6 rounded ${color.class}`}></div>
+                      <span className="text-xs mt-1 block text-gray-700 dark:text-gray-300">{color.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  id="edit-reminder"
+                  checked={editingEvent.reminder}
+                  onChange={(e) => setEditingEvent({ ...editingEvent, reminder: e.target.checked })}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                />
+                <label htmlFor="edit-reminder" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Set reminder
+                </label>
+              </div>
+
+              {editingEvent.reminder && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reminder Time</label>
+                  <select
+                    value={editingEvent.reminderMinutes}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, reminderMinutes: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  >
+                    {REMINDER_OPTIONS.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {editingEvent.reminder && notificationPermission !== 'granted' && (
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    Please enable notifications to receive reminders.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingEvent(null);
+                }}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors whitespace-nowrap"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateEvent}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors whitespace-nowrap"
+              >
+                Update Event
               </button>
             </div>
           </div>

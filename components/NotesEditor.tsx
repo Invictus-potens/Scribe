@@ -11,6 +11,7 @@ interface NotesEditorProps {
   setSelectedNote: (note: any) => void;
   searchTerm: string;
   onNoteSaved?: () => void;
+  notes?: any[];
 }
 
 export default function NotesEditor({ 
@@ -18,7 +19,8 @@ export default function NotesEditor({
   selectedNote, 
   setSelectedNote, 
   searchTerm,
-  onNoteSaved
+  onNoteSaved,
+  notes = []
 }: NotesEditorProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -62,14 +64,12 @@ export default function NotesEditor({
 
       if (selectedNote.id) {
         // Update existing note
-        console.log('Updating note with data:', updatedNote);
         const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
         if (error) {
           console.error('Error updating note:', error);
           alert(`Error updating note: ${error.message}`);
           return;
         }
-        console.log('Note updated successfully:', data);
         setSelectedNote(data);
         // Notify parent component that note was saved
         if (onNoteSaved) {
@@ -77,14 +77,6 @@ export default function NotesEditor({
         }
       } else {
         // Create new note
-        console.log('Creating new note with data:', {
-          user_id: user.id,
-          title,
-          content,
-          tags,
-          is_pinned: isPinned,
-          folder: selectedFolder !== 'all' ? selectedFolder : undefined,
-        });
         const { data, error } = await notesHelpers.createNote({
           user_id: user.id,
           title,
@@ -98,7 +90,6 @@ export default function NotesEditor({
           alert(`Error creating note: ${error.message}`);
           return;
         }
-        console.log('Note created successfully:', data);
         setSelectedNote(data);
         // Notify parent component that note was saved
         if (onNoteSaved) {
@@ -130,13 +121,19 @@ export default function NotesEditor({
   };
 
   const formatText = (command: string) => {
-    document.execCommand(command);
-    setIsFormatting(true);
-    setTimeout(() => setIsFormatting(false), 200);
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand(command, false, null);
+      setIsFormatting(true);
+      setTimeout(() => setIsFormatting(false), 200);
+    }
   };
 
   const insertList = (type: 'ul' | 'ol') => {
-    document.execCommand(`insert${type === 'ul' ? 'UnorderedList' : 'OrderedList'}`);
+    if (editorRef.current) {
+      editorRef.current.focus();
+      document.execCommand(`insert${type === 'ul' ? 'UnorderedList' : 'OrderedList'}`, false, null);
+    }
   };
 
   if (!selectedNote) {
@@ -164,9 +161,33 @@ export default function NotesEditor({
             placeholder="Note title..."
           />
           <button
-            onClick={() => {
-              setIsPinned(!isPinned);
-              handleSave();
+            onClick={async () => {
+              const newPinnedState = !isPinned;
+              setIsPinned(newPinnedState);
+              // Update the note immediately
+              if (selectedNote && selectedNote.id) {
+                try {
+                  const { user } = await authHelpers.getCurrentUser();
+                  if (!user) return;
+                  
+                  const { data, error } = await notesHelpers.updateNote(selectedNote.id, {
+                    ...selectedNote,
+                    is_pinned: newPinnedState
+                  });
+                  if (error) {
+                    console.error('Error updating pin status:', error);
+                    setIsPinned(!newPinnedState); // Revert on error
+                  } else {
+                    setSelectedNote(data);
+                    if (onNoteSaved) {
+                      onNoteSaved();
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error updating pin status:', error);
+                  setIsPinned(!newPinnedState); // Revert on error
+                }
+              }
             }}
             className={`p-2 rounded-lg transition-colors ${
               isPinned 
@@ -185,6 +206,33 @@ export default function NotesEditor({
           >
             <i className="ri-layout-column-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
           </button>
+          {selectedNote && selectedNote.id && (
+            <button
+              onClick={async () => {
+                if (confirm('Tem certeza que deseja deletar esta nota?')) {
+                  try {
+                    const { error } = await notesHelpers.deleteNote(selectedNote.id);
+                    if (error) {
+                      console.error('Error deleting note:', error);
+                      alert(`Error deleting note: ${error.message}`);
+                    } else {
+                      setSelectedNote(null);
+                      if (onNoteSaved) {
+                        onNoteSaved();
+                      }
+                    }
+                  } catch (error) {
+                    console.error('Error deleting note:', error);
+                    alert('An unexpected error occurred while deleting the note');
+                  }
+                }
+              }}
+              className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900 transition-colors text-red-600 dark:text-red-400"
+              title="Delete Note"
+            >
+              <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
+            </button>
+          )}
           <button
             onClick={handleSave}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
@@ -313,10 +361,58 @@ export default function NotesEditor({
             <div className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Compare with another note</h4>
             </div>
-            <div className="p-6 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 h-full">
-              <p className="text-gray-500 dark:text-gray-400 text-center">
-                Select another note to compare
-              </p>
+            <div className="p-4 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 h-full overflow-y-auto">
+              {secondNote ? (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h5 className="font-medium text-gray-800 dark:text-gray-200">{secondNote.title}</h5>
+                    <button
+                      onClick={() => setSecondNote(null)}
+                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      <i className="ri-close-line w-4 h-4"></i>
+                    </button>
+                  </div>
+                  <div 
+                    className="prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: secondNote.content || '' }}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
+                    Select another note to compare with the current note
+                  </p>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {notes.map(note => (
+                      note.id !== selectedNote?.id && (
+                        <div
+                          key={note.id}
+                          onClick={() => setSecondNote(note)}
+                          className="p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <h6 className="font-medium text-gray-800 dark:text-gray-200 text-sm mb-1">
+                            {note.title}
+                          </h6>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                            {note.content || 'No content'}
+                          </p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs text-gray-500">
+                              {new Date(note.updated_at || '').toLocaleDateString()}
+                            </span>
+                            {note.folder && (
+                              <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
+                                {note.folder}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

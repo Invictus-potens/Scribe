@@ -21,6 +21,7 @@ export default function Home() {
   const [selectedNote, setSelectedNote] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [notesUpdateTrigger, setNotesUpdateTrigger] = useState(0);
+  const [notes, setNotes] = useState([]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -162,6 +163,7 @@ export default function Home() {
             setSelectedNote={setSelectedNote}
             searchTerm={searchTerm}
             onNotesUpdate={() => setNotesUpdateTrigger(prev => prev + 1)}
+            onNotesLoaded={setNotes}
           />
           
           <main className="flex-1 p-6">
@@ -172,6 +174,7 @@ export default function Home() {
                 setSelectedNote={setSelectedNote}
                 searchTerm={searchTerm}
                 onNoteSaved={handleNoteSaved}
+                notes={notes}
               />
             )}
             {activeView === 'kanban' && <KanbanBoard />}

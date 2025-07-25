@@ -12,6 +12,7 @@ interface SidebarProps {
   setSelectedNote: (note: any) => void;
   searchTerm: string;
   onNotesUpdate?: () => void;
+  onNotesLoaded?: (notes: any[]) => void;
 }
 
 export default function Sidebar({ 
@@ -21,7 +22,8 @@ export default function Sidebar({
   selectedNote, 
   setSelectedNote,
   searchTerm,
-  onNotesUpdate
+  onNotesUpdate,
+  onNotesLoaded
 }: SidebarProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -40,8 +42,10 @@ export default function Sidebar({
       if (notesError) {
         console.error('Error loading notes:', notesError);
       } else {
-        console.log('Notes loaded:', notesData);
         setNotes(notesData || []);
+        if (onNotesLoaded) {
+          onNotesLoaded(notesData || []);
+        }
       }
     } catch (error) {
       console.error('Error reloading notes:', error);
@@ -77,7 +81,6 @@ export default function Sidebar({
 
   // Reload notes when parent component triggers update
   useEffect(() => {
-    console.log('Reloading notes due to update trigger');
     reloadNotes();
   }, [onNotesUpdate]);
 
@@ -177,23 +180,61 @@ export default function Sidebar({
             </span>
           </button>
 
-          {folders.map(folder => (
-            <button
-              key={folder.id}
-              onClick={() => setSelectedFolder(folder.name)}
-              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap ${
-                selectedFolder === folder.name 
-                  ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-            >
-              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-              <span className="flex-1">{folder.name}</span>
-              <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
-                {notes.filter(note => note.folder === folder.name).length}
-              </span>
-            </button>
-          ))}
+                     {folders.map(folder => (
+             <div
+               key={folder.id}
+               className={`group w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap ${
+                 selectedFolder === folder.name 
+                   ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+               }`}
+             >
+               <button
+                 onClick={() => setSelectedFolder(folder.name)}
+                 className="flex items-center space-x-3 flex-1"
+               >
+                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                 <span className="flex-1">{folder.name}</span>
+                 <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
+                   {notes.filter(note => note.folder === folder.name).length}
+                 </span>
+               </button>
+               <button
+                 onClick={async () => {
+                   if (confirm(`Tem certeza que deseja deletar a pasta "${folder.name}"? Todas as notas nesta pasta serão movidas para "All Notes".`)) {
+                     try {
+                       // Move all notes from this folder to "All Notes" (remove folder)
+                       const notesInFolder = notes.filter(note => note.folder === folder.name);
+                       for (const note of notesInFolder) {
+                         await notesHelpers.updateNote(note.id, { ...note, folder: undefined });
+                       }
+                       
+                       // Delete the folder
+                       const { error } = await foldersHelpers.deleteFolder(folder.id);
+                       if (error) {
+                         console.error('Error deleting folder:', error);
+                         alert(`Error deleting folder: ${error.message}`);
+                       } else {
+                         setFolders(folders.filter(f => f.id !== folder.id));
+                         if (selectedFolder === folder.name) {
+                           setSelectedFolder('all');
+                         }
+                         // Reload notes to reflect changes
+                         await reloadNotes();
+                       }
+                     } catch (error) {
+                       console.error('Error deleting folder:', error);
+                       alert('An unexpected error occurred while deleting the folder');
+                     }
+                   }
+                 }}
+                 className="p-1 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors text-red-600 dark:text-red-400 opacity-0 group-hover:opacity-100"
+                 title="Delete Folder"
+               >
+                 <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center"></i>
+               </button>
+             </div>
+           ))}
         </div>
       </div>
 

@@ -39,9 +39,11 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
       async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
           onLogin();
-        } else if (event === 'SIGNED_UP' && !session) {
-          setShowEmailConfirmation(true);
+        } else if (event === 'TOKEN_REFRESHED' && session) {
+          onLogin();
         }
+        // Note: SIGNED_UP event is not available in newer Supabase versions
+        // Email confirmation is handled in the signup flow
       }
     );
 
@@ -102,11 +104,19 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
           onLogin();
         }
       } else {
-        const { error } = await authHelpers.signUp(formData.email, formData.password, formData.name);
+        // Handle signup
+        const { data, error } = await authHelpers.signUp(formData.email, formData.password, formData.name);
         if (error) {
           setErrors({ general: error.message });
         } else {
-          setShowEmailConfirmation(true);
+          // Check if user needs email confirmation
+          if (data.user && !data.session) {
+            // User created but needs email confirmation
+            setShowEmailConfirmation(true);
+          } else if (data.session) {
+            // User created and automatically signed in (email confirmation not required)
+            onLogin();
+          }
         }
       }
     } catch (error) {

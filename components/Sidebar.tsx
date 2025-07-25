@@ -13,6 +13,8 @@ interface SidebarProps {
   searchTerm: string;
   onNotesUpdate?: () => void;
   onNotesLoaded?: (notes: any[]) => void;
+  hasUnsavedChanges?: boolean;
+  onCheckUnsavedChanges?: (action: () => void) => void;
 }
 
 export default function Sidebar({ 
@@ -23,7 +25,9 @@ export default function Sidebar({
   setSelectedNote,
   searchTerm,
   onNotesUpdate,
-  onNotesLoaded
+  onNotesLoaded,
+  hasUnsavedChanges = false,
+  onCheckUnsavedChanges
 }: SidebarProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -84,11 +88,19 @@ export default function Sidebar({
     reloadNotes();
   }, [onNotesUpdate]);
 
+  // Função para remover tags HTML e extrair texto puro
+  const stripHtml = (html: string) => {
+    if (!html) return '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  };
+
   const filteredNotes = notes.filter(note => {
     const matchesFolder = selectedFolder === 'all' || note.folder === selectedFolder;
     const matchesSearch = !searchTerm || 
       note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      stripHtml(note.content).toLowerCase().includes(searchTerm.toLowerCase()) ||
       (note.tags && note.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())));
     return matchesFolder && matchesSearch;
   }).sort((a, b) => {
@@ -102,6 +114,13 @@ export default function Sidebar({
       try {
         const { user } = await authHelpers.getCurrentUser();
         if (!user) return;
+
+        // Mostrar loading no botão
+        const createButton = document.querySelector('[data-action="create-folder"]') as HTMLButtonElement;
+        if (createButton) {
+          createButton.disabled = true;
+          createButton.innerHTML = 'Criando...';
+        }
 
         const { data, error } = await foldersHelpers.createFolder({
           name: newFolderName,
@@ -118,23 +137,38 @@ export default function Sidebar({
         setShowNewFolderModal(false);
       } catch (error) {
         console.error('Error creating folder:', error);
+      } finally {
+        // Restaurar botão
+        const createButton = document.querySelector('[data-action="create-folder"]') as HTMLButtonElement;
+        if (createButton) {
+          createButton.disabled = false;
+          createButton.innerHTML = 'Create';
+        }
       }
     }
   };
 
   const handleNewNote = () => {
-    const newNote = {
-      id: '',
-      title: 'Untitled Note',
-      content: '',
-      folder: selectedFolder === 'all' ? undefined : selectedFolder,
-      tags: [],
-      is_pinned: false,
-      user_id: '',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    const createNewNote = () => {
+      const newNote = {
+        id: '',
+        title: 'Untitled Note',
+        content: '',
+        folder: selectedFolder === 'all' ? undefined : selectedFolder,
+        tags: [],
+        is_pinned: false,
+        user_id: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      setSelectedNote(newNote);
     };
-    setSelectedNote(newNote);
+
+    if (onCheckUnsavedChanges) {
+      onCheckUnsavedChanges(createNewNote);
+    } else {
+      createNewNote();
+    }
   };
 
   if (activeView !== 'notes') {
@@ -166,7 +200,15 @@ export default function Sidebar({
 
         <div className="space-y-1">
           <button
-            onClick={() => setSelectedFolder('all')}
+            onClick={() => {
+              const selectAllNotes = () => setSelectedFolder('all');
+              
+              if (onCheckUnsavedChanges) {
+                onCheckUnsavedChanges(selectAllNotes);
+              } else {
+                selectAllNotes();
+              }
+            }}
             className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors whitespace-nowrap ${
               selectedFolder === 'all' 
                 ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
@@ -190,7 +232,15 @@ export default function Sidebar({
                }`}
              >
                <button
-                 onClick={() => setSelectedFolder(folder.name)}
+                 onClick={() => {
+                   const selectFolder = () => setSelectedFolder(folder.name);
+                   
+                   if (onCheckUnsavedChanges) {
+                     onCheckUnsavedChanges(selectFolder);
+                   } else {
+                     selectFolder();
+                   }
+                 }}
                  className="flex items-center space-x-3 flex-1"
                >
                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
@@ -200,14 +250,23 @@ export default function Sidebar({
                  </span>
                </button>
                <button
-                 onClick={async () => {
+                 onClick={async (event) => {
                    if (confirm(`Tem certeza que deseja deletar a pasta "${folder.name}"? Todas as notas nesta pasta serão movidas para "All Notes".`)) {
                      try {
-                       // Move all notes from this folder to "All Notes" (remove folder)
+                       // Mostrar loading
+                       const button = event?.target as HTMLButtonElement;
+                       const originalContent = button.innerHTML;
+                       button.innerHTML = '<i class="ri-loader-4-line w-3 h-3 flex items-center justify-center animate-spin"></i>';
+                       button.disabled = true;
+                       
+                       // Move all notes from this folder to "All Notes" (remove folder) - em paralelo
                        const notesInFolder = notes.filter(note => note.folder === folder.name);
-                       for (const note of notesInFolder) {
-                         await notesHelpers.updateNote(note.id, { ...note, folder: undefined });
-                       }
+                       const updatePromises = notesInFolder.map(note => 
+                         notesHelpers.updateNote(note.id, { ...note, folder: undefined })
+                       );
+                       
+                       // Executar todas as atualizações em paralelo
+                       await Promise.all(updatePromises);
                        
                        // Delete the folder
                        const { error } = await foldersHelpers.deleteFolder(folder.id);
@@ -225,6 +284,13 @@ export default function Sidebar({
                      } catch (error) {
                        console.error('Error deleting folder:', error);
                        alert('An unexpected error occurred while deleting the folder');
+                     } finally {
+                       // Restaurar botão
+                       const button = event?.target as HTMLButtonElement;
+                       if (button) {
+                         button.innerHTML = '<i class="ri-delete-bin-line w-3 h-3 flex items-center justify-center"></i>';
+                         button.disabled = false;
+                       }
                      }
                    }
                  }}
@@ -247,7 +313,15 @@ export default function Sidebar({
           {filteredNotes.map(note => (
             <div
               key={note.id}
-              onClick={() => setSelectedNote(note)}
+              onClick={() => {
+                const selectNote = () => setSelectedNote(note);
+                
+                if (onCheckUnsavedChanges) {
+                  onCheckUnsavedChanges(selectNote);
+                } else {
+                  selectNote();
+                }
+              }}
               className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                 selectedNote?.id === note.id
                   ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
@@ -264,7 +338,7 @@ export default function Sidebar({
               </div>
 
               <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">
-                {note.content || 'No content yet...'}
+                {stripHtml(note.content) || 'Sem conteúdo ainda...'}
               </p>
 
               <div className="flex items-center justify-between">
@@ -309,6 +383,7 @@ export default function Sidebar({
               </button>
               <button
                 onClick={handleNewFolder}
+                data-action="create-folder"
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors whitespace-nowrap"
               >
                 Create

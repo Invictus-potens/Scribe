@@ -2,3 +2,159 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  outline: none;
+  min-height: 400px;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 0.67em 0;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0.75em 0;
+}
+
+.ProseMirror h3 {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin: 0.83em 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 1em 0;
+}
+
+.ProseMirror li {
+  margin: 0.5em 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid #ddd;
+  margin: 1em 0;
+  padding-left: 1em;
+  font-style: italic;
+}
+
+.ProseMirror code {
+  background-color: #f1f1f1;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror pre {
+  background-color: #f1f1f1;
+  padding: 1em;
+  border-radius: 5px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.ProseMirror pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 2em 0;
+}
+
+/* Dark mode styles */
+.dark .ProseMirror {
+  color: #e5e7eb;
+}
+
+.dark .ProseMirror blockquote {
+  border-left-color: #4b5563;
+}
+
+.dark .ProseMirror code {
+  background-color: #374151;
+  color: #e5e7eb;
+}
+
+.dark .ProseMirror pre {
+  background-color: #374151;
+}
+
+.dark .ProseMirror hr {
+  border-top-color: #4b5563;
+}
+
+/* Focus styles */
+.ProseMirror:focus {
+  outline: none;
+}
+
+/* Selection styles */
+.ProseMirror ::selection {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.dark .ProseMirror ::selection {
+  background-color: #60a5fa;
+  color: white;
+}
+
+/* Draggable images */
+.draggable-image {
+  cursor: move;
+  user-select: none;
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+}
+
+.draggable-image:hover {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.draggable-image:active {
+  cursor: grabbing;
+}
+
+/* Drag handle styles */
+.drag-handle {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 16px;
+  height: 16px;
+  background-color: #3b82f6;
+  border-radius: 50%;
+  cursor: move;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+.draggable-image:hover .drag-handle {
+  opacity: 1;
+}
+
+.dark .drag-handle {
+  background-color: #60a5fa;
+}

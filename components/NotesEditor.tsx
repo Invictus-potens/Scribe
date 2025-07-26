@@ -110,6 +110,25 @@ export default function NotesEditor({
     }
   }, [selectedNote, editor, setHasUnsavedChanges]);
 
+  // Verificar se há mudanças reais comparando com o conteúdo original
+  const checkForRealChanges = () => {
+    if (!selectedNote || !editor) return false;
+    
+    const currentContent = editor.getHTML();
+    const originalContent = selectedNote.content || '';
+    const currentTitle = title;
+    const originalTitle = selectedNote.title || '';
+    const currentTags = JSON.stringify(tags.sort());
+    const originalTags = JSON.stringify((selectedNote.tags || []).sort());
+    const currentPinned = isPinned;
+    const originalPinned = selectedNote.is_pinned || false;
+    
+    return currentContent !== originalContent || 
+           currentTitle !== originalTitle || 
+           currentTags !== originalTags || 
+           currentPinned !== originalPinned;
+  };
+
   // Verificar mudanças não salvas ao fechar a página
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -133,24 +152,6 @@ export default function NotesEditor({
       }
     }
   }, [checkForRealChanges, hasUnsavedChanges, selectedNote, editor, setHasUnsavedChanges]);
-  // Verificar se há mudanças reais comparando com o conteúdo original
-  const checkForRealChanges = () => {
-    if (!selectedNote || !editor) return false;
-    
-    const currentContent = editor.getHTML();
-    const originalContent = selectedNote.content || '';
-    const currentTitle = title;
-    const originalTitle = selectedNote.title || '';
-    const currentTags = JSON.stringify(tags.sort());
-    const originalTags = JSON.stringify((selectedNote.tags || []).sort());
-    const currentPinned = isPinned;
-    const originalPinned = selectedNote.is_pinned || false;
-    
-    return currentContent !== originalContent || 
-           currentTitle !== originalTitle || 
-           currentTags !== originalTags || 
-           currentPinned !== originalPinned;
-  };
 
   const handleSave = async () => {
     if (!selectedNote) return;

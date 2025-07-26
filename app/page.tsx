@@ -15,7 +15,6 @@ import KanbanBoard from '../components/KanbanBoard';
 import Calendar from '../components/Calendar';
 import AIAssistant from '../components/AIAssistant';
 import AuthModal from '../components/AuthModal';
-import CompanyManager from '../components/CompanyManager';
 import ResponsiveDebug from '../components/ResponsiveDebug';
 
 export default function Home() {
@@ -219,10 +218,9 @@ export default function Home() {
               }}
             />
           )}
-                      {activeView === 'kanban' && <KanbanBoard />}
-            {activeView === 'calendar' && <Calendar />}
-            {activeView === 'ai' && <AIAssistant />}
-            {activeView === 'companies' && <CompanyManager />}
+          {activeView === 'kanban' && <KanbanBoard />}
+          {activeView === 'calendar' && <Calendar />}
+          {activeView === 'ai' && <AIAssistant />}
         </main>
       </div>
 

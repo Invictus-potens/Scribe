@@ -372,6 +372,7 @@ export default function NotesEditor({
                 ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' 
                 : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
             }`}
+            title={isPinned ? "Desafixar nota" : "Fixar nota"}
           >
             <i className={`ri-pushpin-${isPinned ? 'fill' : 'line'} w-4 h-4 flex items-center justify-center`}></i>
           </button>
@@ -381,6 +382,7 @@ export default function NotesEditor({
           <button
             onClick={() => setShowSplitView(!showSplitView)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title="Alternar visualização dividida"
           >
             <i className="ri-layout-column-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
           </button>
@@ -651,6 +653,7 @@ export default function NotesEditor({
                   <button
                     onClick={() => handleRemoveTag(tag)}
                     className="hover:text-blue-600 dark:hover:text-blue-400"
+                    title={`Remover tag "${tag}"`}
                   >
                     <i className="ri-close-line w-3 h-3 flex items-center justify-center"></i>
                   </button>
@@ -701,6 +704,7 @@ export default function NotesEditor({
                     <button
                       onClick={() => setSecondNote(null)}
                       className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                      title="Fechar comparação"
                     >
                       <i className="ri-close-line w-4 h-4"></i>
                     </button>

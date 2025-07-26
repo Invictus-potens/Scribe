@@ -208,20 +208,22 @@ export default function Home() {
         />
         
         <div className="flex">
-          <Sidebar 
-            selectedFolder={selectedFolder}
-            setSelectedFolder={setSelectedFolder}
-            activeView={activeView}
-            selectedNote={selectedNote}
-            setSelectedNote={setSelectedNote}
-            searchTerm={searchTerm}
-            onNotesUpdate={() => setNotesUpdateTrigger(prev => prev + 1)}
-            onNotesLoaded={setNotes}
-            hasUnsavedChanges={hasUnsavedChanges}
-            onCheckUnsavedChanges={checkUnsavedChanges}
-          />
+          {activeView === 'notes' && (
+            <Sidebar 
+              selectedFolder={selectedFolder}
+              setSelectedFolder={setSelectedFolder}
+              activeView={activeView}
+              selectedNote={selectedNote}
+              setSelectedNote={setSelectedNote}
+              searchTerm={searchTerm}
+              onNotesUpdate={() => setNotesUpdateTrigger(prev => prev + 1)}
+              onNotesLoaded={setNotes}
+              hasUnsavedChanges={hasUnsavedChanges}
+              onCheckUnsavedChanges={checkUnsavedChanges}
+            />
+          )}
           
-          <main className="flex-1 p-6">
+          <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} p-6`}>
             {activeView === 'notes' && (
               <NotesEditor 
                 selectedFolder={selectedFolder}

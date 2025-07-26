@@ -128,21 +128,7 @@ export default function Home() {
     if (hasUnsavedChanges) {
       // Mostrar modal e executar ação após confirmação
       setPendingAction(() => async () => {
-        // Salvar a nota atual antes de executar a ação
-        try {
-          const { user } = await authHelpers.getCurrentUser();
-          if (user) {
-            // Chamar a função de salvar se disponível
-            if (saveNoteRef && typeof saveNoteRef === 'function') {
-              await saveNoteRef();
-            } else {
-              console.warn('saveNoteRef não está disponível ou não é uma função');
-            }
-            console.log('Salvando nota antes de executar ação...');
-          }
-        } catch (error) {
-          console.error('Error saving note:', error);
-        }
+        // Executar a ação diretamente
         action();
       });
       setShowUnsavedModal(true);

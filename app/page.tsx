@@ -3,7 +3,6 @@
  * Data de conclusão: 25/07/2025
  */
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -180,50 +179,49 @@ export default function Home() {
       />
       
       <div className="flex flex-1 overflow-hidden">
+        {activeView === 'notes' && (
+          <Sidebar 
+            selectedFolder={selectedFolder}
+            setSelectedFolder={setSelectedFolder}
+            activeView={activeView}
+            selectedNote={selectedNote}
+            setSelectedNote={setSelectedNote}
+            searchTerm={searchTerm}
+            onNotesUpdate={() => setNotesUpdateTrigger(prev => prev + 1)}
+            onNotesLoaded={setNotes}
+            hasUnsavedChanges={hasUnsavedChanges}
+            onCheckUnsavedChanges={checkUnsavedChanges}
+          />
+        )}
+        
+        <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} content-padding overflow-auto`}>
           {activeView === 'notes' && (
-            <Sidebar 
+            <NotesEditor 
               selectedFolder={selectedFolder}
-              setSelectedFolder={setSelectedFolder}
-              activeView={activeView}
               selectedNote={selectedNote}
               setSelectedNote={setSelectedNote}
               searchTerm={searchTerm}
-              onNotesUpdate={() => setNotesUpdateTrigger(prev => prev + 1)}
-              onNotesLoaded={setNotes}
+              onNoteSaved={handleNoteSaved}
+              notes={notes}
               hasUnsavedChanges={hasUnsavedChanges}
-              onCheckUnsavedChanges={checkUnsavedChanges}
-            />
-          )}
-          
-          <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} content-padding overflow-auto`}>
-            {activeView === 'notes' && (
-              <NotesEditor 
-                selectedFolder={selectedFolder}
-                selectedNote={selectedNote}
-                setSelectedNote={setSelectedNote}
-                searchTerm={searchTerm}
-                onNoteSaved={handleNoteSaved}
-                notes={notes}
-                hasUnsavedChanges={hasUnsavedChanges}
-                setHasUnsavedChanges={setHasUnsavedChanges}
-                onUnsavedChangesConfirm={() => {
-                  if (pendingAction) {
-                    pendingAction();
-                    setPendingAction(null);
-                    setShowUnsavedModal(false);
-                  }
-                }}
-                onUnsavedChangesCancel={() => {
+              setHasUnsavedChanges={setHasUnsavedChanges}
+              onUnsavedChangesConfirm={() => {
+                if (pendingAction) {
+                  pendingAction();
                   setPendingAction(null);
                   setShowUnsavedModal(false);
-                }}
-              />
-            )}
-            {activeView === 'kanban' && <KanbanBoard />}
-            {activeView === 'calendar' && <Calendar />}
-            {activeView === 'ai' && <AIAssistant />}
-          </main>
-        </div>
+                }
+              }}
+              onUnsavedChangesCancel={() => {
+                setPendingAction(null);
+                setShowUnsavedModal(false);
+              }}
+            />
+          )}
+          {activeView === 'kanban' && <KanbanBoard />}
+          {activeView === 'calendar' && <Calendar />}
+          {activeView === 'ai' && <AIAssistant />}
+        </main>
       </div>
 
       {/* Modal Global de Mudanças Não Salvas */}

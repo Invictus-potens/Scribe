@@ -24,6 +24,8 @@ export function useResponsive(): ScreenSize {
   });
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     function updateScreenSize() {
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -94,6 +96,8 @@ export function useOrientation() {
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('landscape');
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     function updateOrientation() {
       setOrientation(window.innerWidth > window.innerHeight ? 'landscape' : 'portrait');
     }
@@ -116,7 +120,9 @@ export function useTouchDevice() {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   useEffect(() => {
-    setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    if (typeof window !== 'undefined') {
+      setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    }
   }, []);
 
   return isTouchDevice;
@@ -127,7 +133,9 @@ export function usePixelDensity() {
   const [pixelDensity, setPixelDensity] = useState(1);
 
   useEffect(() => {
-    setPixelDensity(window.devicePixelRatio || 1);
+    if (typeof window !== 'undefined') {
+      setPixelDensity(window.devicePixelRatio || 1);
+    }
   }, []);
 
   return pixelDensity;

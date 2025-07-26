@@ -1,8 +1,7 @@
 /*
-oooooooooooi
- * * 
- * * Data de conclusão: 25/07/2025
- * */
+ * Scribe - Workspace de Produtividade
+ * Data de conclusão: 25/07/2025
+ */
 
 
 'use client';

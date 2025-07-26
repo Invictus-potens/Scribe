@@ -126,7 +126,6 @@ export default function Home() {
 
   const checkUnsavedChanges = (action: () => void) => {
     if (hasUnsavedChanges) {
-<<<<<<< HEAD
       // Mostrar modal e executar ação após confirmação
       setPendingAction(() => async () => {
         // Salvar a nota atual antes de executar a ação
@@ -146,11 +145,6 @@ export default function Home() {
         }
         action();
       });
-=======
-      // Em vez de usar confirm, vamos passar a ação para o NotesEditor
-      // O NotesEditor vai mostrar o modal personalizado
-      setPendingAction(() => action);
->>>>>>> parent of c31f443 (testes)
       setShowUnsavedModal(true);
     } else {
       action();
@@ -278,27 +272,7 @@ export default function Home() {
             
             <div className="flex flex-col space-y-3">
               <button
-<<<<<<< HEAD
-                onClick={async () => {
-                  // Salvar a nota atual antes de executar a ação
-                  try {
-                    const { user } = await authHelpers.getCurrentUser();
-                    if (user) {
-                      // Chamar a função de salvar se disponível
-                      if (saveNoteRef && typeof saveNoteRef === 'function') {
-                        await saveNoteRef();
-                      } else {
-                        console.warn('saveNoteRef não está disponível ou não é uma função');
-                      }
-                      console.log('Nota salva com sucesso!');
-                    }
-                  } catch (error) {
-                    console.error('Error saving note:', error);
-                  }
-                  
-=======
                 onClick={() => {
->>>>>>> parent of c31f443 (testes)
                   setHasUnsavedChanges(false);
                   if (pendingAction) {
                     pendingAction();

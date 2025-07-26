@@ -32,7 +32,7 @@ export default function Header({
   ];
 
   return (
-    <header className="header-height bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 content-padding-x flex items-center">
+    <header className="header-height bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 content-padding-x flex items-center flex-shrink-0">
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center space-responsive-lg">
           <h1 className="text-responsive-2xl font-bold text-gray-800 dark:text-white font-pacifico">Scribe</h1>

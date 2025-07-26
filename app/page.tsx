@@ -169,19 +169,18 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="bg-gray-50 dark:bg-gray-900 min-h-screen">
-        <Header 
-          activeView={activeView}
-          setActiveView={setActiveView}
-          darkMode={darkMode}
-          toggleTheme={toggleTheme}
-          onLogout={handleLogout}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-        />
-        
-        <div className="flex">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
+      <Header 
+        activeView={activeView}
+        setActiveView={setActiveView}
+        darkMode={darkMode}
+        toggleTheme={toggleTheme}
+        onLogout={handleLogout}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+      />
+      
+      <div className="flex flex-1 overflow-hidden">
           {activeView === 'notes' && (
             <Sidebar 
               selectedFolder={selectedFolder}
@@ -197,7 +196,7 @@ export default function Home() {
             />
           )}
           
-          <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} content-padding`}>
+          <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} content-padding overflow-auto`}>
             {activeView === 'notes' && (
               <NotesEditor 
                 selectedFolder={selectedFolder}

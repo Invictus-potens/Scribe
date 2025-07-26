@@ -3,6 +3,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Reset global para eliminar espaços extras */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#__next {
+  height: 100%;
+}
+
 /* CSS Variables for responsive design */
 :root {
   --sidebar-width-xs: 280px;
@@ -170,6 +182,8 @@
 .ProseMirror {
   outline: none;
   min-height: 400px;
+  height: 100%;
+  overflow-y: auto;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {

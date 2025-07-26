@@ -383,7 +383,7 @@ export default function NotesEditor({
   }
 
   return (
-    <div className="flex-1 flex flex-col h-full">
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-4">
           <input
@@ -657,13 +657,13 @@ export default function NotesEditor({
         </button>
       </div>
 
-      <div className="flex-1 flex">
-        <div className={`${showSplitView ? 'w-1/2' : 'w-full'} flex flex-col`}>
+      <div className="flex-1 flex overflow-hidden">
+        <div className={`${showSplitView ? 'w-1/2' : 'w-full'} flex flex-col overflow-hidden`}>
           {/* TipTap Editor */}
           <div className="flex-1 bg-white dark:bg-gray-800 overflow-y-auto">
             <EditorContent 
               editor={editor} 
-              className="p-6 text-gray-800 dark:text-gray-200 focus:outline-none min-h-[400px] prose prose-sm max-w-none dark:prose-invert"
+              className="p-6 text-gray-800 dark:text-gray-200 focus:outline-none h-full prose prose-sm max-w-none dark:prose-invert"
             />
           </div>
 
@@ -727,11 +727,11 @@ export default function NotesEditor({
         </div>
 
         {showSplitView && (
-          <div className="w-1/2 border-l border-gray-200 dark:border-gray-700">
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+          <div className="w-1/2 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
               <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Comparar com outra nota</h4>
             </div>
-            <div className="p-4 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 h-full overflow-y-auto">
+            <div className="flex-1 p-4 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 overflow-y-auto">
               {secondNote ? (
                 <div>
                   <div className="flex items-center justify-between mb-4">

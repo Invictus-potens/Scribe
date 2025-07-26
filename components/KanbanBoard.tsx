@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -119,6 +118,9 @@ export default function KanbanBoard() {
         console.error('Error creating card:', error);
         return;
       }
+
+      // Verificar se card não é null antes de adicionar
+      if (!card) return;
 
       // Update local state
       const updatedColumns = activeBoard.columns.map(column => {

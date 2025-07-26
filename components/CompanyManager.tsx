@@ -57,9 +57,12 @@ export default function CompanyManager() {
         return;
       }
 
-      setCompanies(prev => [data, ...prev]);
-      setShowCreateModal(false);
-      setNewCompany({ name: '', description: '' });
+      // Verificar se data não é null antes de adicionar ao array
+      if (data) {
+        setCompanies(prev => [data, ...prev]);
+        setShowCreateModal(false);
+        setNewCompany({ name: '', description: '' });
+      }
     } catch (error) {
       console.error('Error creating company:', error);
     }
@@ -243,12 +246,12 @@ export default function CompanyManager() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Função</label>
-                                 <select
-                   value={inviteData.role}
-                   onChange={(e) => setInviteData({ ...inviteData, role: e.target.value as 'admin' | 'member' })}
-                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                   title="Selecionar função"
-                 >
+                <select
+                  value={inviteData.role}
+                  onChange={(e) => setInviteData({ ...inviteData, role: e.target.value as 'admin' | 'member' })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  title="Selecionar função"
+                >
                   <option value="member">Membro</option>
                   <option value="admin">Administrador</option>
                 </select>
@@ -281,13 +284,13 @@ export default function CompanyManager() {
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
                 Membros de {selectedCompany.name}
               </h3>
-                             <button
-                 onClick={() => setSelectedCompany(null)}
-                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                 title="Fechar"
-               >
-                 <i className="ri-close-line w-5 h-5"></i>
-               </button>
+              <button
+                onClick={() => setSelectedCompany(null)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                title="Fechar"
+              >
+                <i className="ri-close-line w-5 h-5"></i>
+              </button>
             </div>
 
             <div className="space-y-3">
@@ -312,4 +315,4 @@ export default function CompanyManager() {
       )}
     </div>
   );
-} 
+}

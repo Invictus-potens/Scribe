@@ -23,12 +23,14 @@ export default function Header({
   setSearchTerm 
 }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showCompanyMenu, setShowCompanyMenu] = useState(false);
 
   const views = [
     { id: 'notes', label: 'Notes', icon: 'ri-file-text-line' },
     { id: 'kanban', label: 'Kanban', icon: 'ri-kanban-view' },
     { id: 'calendar', label: 'Calendar', icon: 'ri-calendar-line' },
-    { id: 'ai', label: 'AI Assistant', icon: 'ri-robot-line' }
+    { id: 'ai', label: 'AI Assistant', icon: 'ri-robot-line' },
+    { id: 'companies', label: 'Empresas', icon: 'ri-building-line' }
   ];
 
   return (

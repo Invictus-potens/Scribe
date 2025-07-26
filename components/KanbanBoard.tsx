@@ -2,146 +2,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-interface Card {
-  id: string;
-  title: string;
-  description: string;
-  assignee: string;
-  priority: 'low' | 'medium' | 'high';
-  dueDate?: string;
-  tags: string[];
-}
-
-interface Column {
-  id: string;
-  title: string;
-  cards: Card[];
-}
-
-interface Board {
-  id: string;
-  title: string;
-  columns: Column[];
-}
+import { kanbanHelpers, KanbanBoardWithData, KanbanCard, KanbanColumn } from '../lib/kanbanHelpers';
+import { companyHelpers } from '../lib/companyHelpers';
+import { authHelpers } from '../lib/supabase';
+import ShareBoardModal from './ShareBoardModal';
 
 export default function KanbanBoard() {
-  const [boards, setBoards] = useState<Board[]>([
-    {
-      id: 'project-alpha',
-      title: 'Project Alpha',
-      columns: [
-        {
-          id: 'todo',
-          title: 'To Do',
-          cards: [
-            {
-              id: 'kb-1',
-              title: 'Design System Setup',
-              description: 'Create a comprehensive design system for the project',
-              assignee: 'John Doe',
-              priority: 'high',
-              dueDate: '2024-02-15',
-              tags: ['design', 'system']
-            },
-            {
-              id: 'kb-2',
-              title: 'User Authentication',
-              description: 'Implement secure user authentication system',
-              assignee: 'Sarah Wilson',
-              priority: 'high',
-              dueDate: '2024-02-20',
-              tags: ['auth', 'security']
-            }
-          ]
-        },
-        {
-          id: 'progress',
-          title: 'In Progress',
-          cards: [
-            {
-              id: 'kb-3',
-              title: 'API Development',
-              description: 'Build RESTful API endpoints for the application',
-              assignee: 'Mike Johnson',
-              priority: 'medium',
-              dueDate: '2024-02-25',
-              tags: ['api', 'backend']
-            }
-          ]
-        },
-        {
-          id: 'review',
-          title: 'Review',
-          cards: [
-            {
-              id: 'kb-4',
-              title: 'Database Schema',
-              description: 'Design and optimize database schema',
-              assignee: 'Emily Davis',
-              priority: 'medium',
-              tags: ['database', 'schema']
-            }
-          ]
-        },
-        {
-          id: 'done',
-          title: 'Done',
-          cards: [
-            {
-              id: 'kb-5',
-              title: 'Project Setup',
-              description: 'Initialize project structure and dependencies',
-              assignee: 'John Doe',
-              priority: 'low',
-              tags: ['setup', 'initial']
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 'marketing',
-      title: 'Marketing Campaign',
-      columns: [
-        {
-          id: 'todo',
-          title: 'To Do',
-          cards: [
-            {
-              id: 'kb-6',
-              title: 'Social Media Strategy',
-              description: 'Develop comprehensive social media marketing strategy',
-              assignee: 'Lisa Chen',
-              priority: 'high',
-              dueDate: '2024-02-18',
-              tags: ['social', 'strategy']
-            }
-          ]
-        },
-        {
-          id: 'progress',
-          title: 'In Progress',
-          cards: []
-        },
-        {
-          id: 'review',
-          title: 'Review',
-          cards: []
-        },
-        {
-          id: 'done',
-          title: 'Done',
-          cards: []
-        }
-      ]
-    }
-  ]);
-
-  const [activeBoard, setActiveBoard] = useState(boards[0]);
+  const [boards, setBoards] = useState<any[]>([]);
+  const [activeBoard, setActiveBoard] = useState<KanbanBoardWithData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [showNewCardModal, setShowNewCardModal] = useState(false);
   const [newCardColumn, setNewCardColumn] = useState('');
-  const [draggedCard, setDraggedCard] = useState<Card | null>(null);
+  const [draggedCard, setDraggedCard] = useState<KanbanCard | null>(null);
   const [newCard, setNewCard] = useState({
     title: '',
     description: '',
@@ -150,8 +23,37 @@ export default function KanbanBoard() {
     dueDate: '',
     tags: [] as string[]
   });
+  const [showShareModal, setShowShareModal] = useState(false);
 
-  const handleDragStart = (e: React.DragEvent, card: Card) => {
+  // Load data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const { user } = await authHelpers.getCurrentUser();
+        if (!user) return;
+
+        setCurrentUser(user);
+
+        // Load user's accessible boards
+        const { data: accessibleBoards } = await companyHelpers.getUserAccessibleBoards(user.id);
+        setBoards(accessibleBoards || []);
+
+        // Set first board as active if available
+        if (accessibleBoards && accessibleBoards.length > 0) {
+          const { data: boardData } = await kanbanHelpers.getBoardWithData(accessibleBoards[0].id);
+          setActiveBoard(boardData);
+        }
+      } catch (error) {
+        console.error('Error loading kanban data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const handleDragStart = (e: React.DragEvent, card: KanbanCard) => {
     setDraggedCard(card);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -161,64 +63,89 @@ export default function KanbanBoard() {
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
+  const handleDrop = async (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
-    if (!draggedCard) return;
+    if (!draggedCard || !activeBoard) return;
 
-    const updatedColumns = activeBoard.columns.map(column => {
-      if (column.id === targetColumnId) {
+    try {
+      // Update in database
+      await kanbanHelpers.moveCard(draggedCard.id, targetColumnId, 0);
+
+      // Update local state
+      const updatedColumns = activeBoard.columns.map(column => {
+        if (column.id === targetColumnId) {
+          return {
+            ...column,
+            cards: [...column.cards, draggedCard]
+          };
+        }
         return {
           ...column,
-          cards: [...column.cards, draggedCard]
+          cards: column.cards.filter(card => card.id !== draggedCard.id)
         };
-      }
-      return {
-        ...column,
-        cards: column.cards.filter(card => card.id !== draggedCard.id)
-      };
-    });
+      });
 
-    const updatedBoard = { ...activeBoard, columns: updatedColumns };
-    setActiveBoard(updatedBoard);
-    setBoards(boards.map(board => board.id === activeBoard.id ? updatedBoard : board));
-    setDraggedCard(null);
+      const updatedBoard = { ...activeBoard, columns: updatedColumns };
+      setActiveBoard(updatedBoard);
+      setBoards(boards.map(board => board.id === activeBoard.id ? updatedBoard : board));
+    } catch (error) {
+      console.error('Error moving card:', error);
+    } finally {
+      setDraggedCard(null);
+    }
   };
 
-  const handleCreateCard = () => {
-    if (!newCard.title.trim()) return;
+  const handleCreateCard = async () => {
+    if (!newCard.title.trim() || !activeBoard) return;
 
-    const card: Card = {
-      id: `kb-${Date.now()}`,
-      title: newCard.title,
-      description: newCard.description,
-      assignee: newCard.assignee,
-      priority: newCard.priority,
-      dueDate: newCard.dueDate,
-      tags: newCard.tags
-    };
+    try {
+      // Find the target column
+      const targetColumn = activeBoard.columns.find(col => col.id === newCardColumn);
+      if (!targetColumn) return;
 
-    const updatedColumns = activeBoard.columns.map(column => {
-      if (column.id === newCardColumn) {
-        return {
-          ...column,
-          cards: [...column.cards, card]
-        };
+      // Create card in database
+      const { data: card, error } = await kanbanHelpers.createCard({
+        column_id: newCardColumn,
+        title: newCard.title,
+        description: newCard.description,
+        assignee: newCard.assignee,
+        priority: newCard.priority,
+        due_date: newCard.dueDate,
+        tags: newCard.tags,
+        order_index: targetColumn.cards.length
+      });
+
+      if (error) {
+        console.error('Error creating card:', error);
+        return;
       }
-      return column;
-    });
 
-    const updatedBoard = { ...activeBoard, columns: updatedColumns };
-    setActiveBoard(updatedBoard);
-    setBoards(boards.map(board => board.id === activeBoard.id ? updatedBoard : board));
-    setShowNewCardModal(false);
-    setNewCard({
-      title: '',
-      description: '',
-      assignee: '',
-      priority: 'medium',
-      dueDate: '',
-      tags: []
-    });
+      // Update local state
+      const updatedColumns = activeBoard.columns.map(column => {
+        if (column.id === newCardColumn) {
+          return {
+            ...column,
+            cards: [...column.cards, card]
+          };
+        }
+        return column;
+      });
+
+      const updatedBoard = { ...activeBoard, columns: updatedColumns };
+      setActiveBoard(updatedBoard);
+      setBoards(boards.map(board => board.id === activeBoard.id ? updatedBoard : board));
+      setShowNewCardModal(false);
+      setNewCard({
+        title: '',
+        description: '',
+        assignee: '',
+        priority: 'medium',
+        dueDate: '',
+        tags: []
+      });
+    } catch (error) {
+      console.error('Error creating card:', error);
+    }
   };
 
   const getPriorityColor = (priority: string) => {
@@ -230,6 +157,40 @@ export default function KanbanBoard() {
     }
   };
 
+  const handleBoardChange = async (boardId: string) => {
+    try {
+      const { data: boardData } = await kanbanHelpers.getBoardWithData(boardId);
+      setActiveBoard(boardData);
+    } catch (error) {
+      console.error('Error loading board:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i className="ri-loader-4-line w-4 h-4 text-white animate-spin"></i>
+          </div>
+          <p className="text-gray-500 dark:text-gray-400">Carregando Kanban...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeBoard) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <i className="ri-kanban-view w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4"></i>
+          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Nenhum Board Disponível</h3>
+          <p className="text-gray-500 dark:text-gray-400">Crie um novo board para começar</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
@@ -237,24 +198,37 @@ export default function KanbanBoard() {
           <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Kanban Board</h1>
           <select
             value={activeBoard.id}
-            onChange={(e) => setActiveBoard(boards.find(b => b.id === e.target.value) || boards[0])}
+            onChange={(e) => handleBoardChange(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm pr-8"
+            title="Selecionar board"
           >
             {boards.map(board => (
-              <option key={board.id} value={board.id}>{board.title}</option>
+              <option key={board.id} value={board.id}>
+                {board.title} {board.is_shared && `(Compartilhado por ${board.company_name})`}
+              </option>
             ))}
           </select>
         </div>
-        <button
-          onClick={() => {
-            setNewCardColumn('todo');
-            setShowNewCardModal(true);
-          }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
-        >
-          <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-          <span>Add Card</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
+            title="Compartilhar board"
+          >
+            <i className="ri-share-line w-4 h-4 flex items-center justify-center"></i>
+            <span>Compartilhar</span>
+          </button>
+          <button
+            onClick={() => {
+              setNewCardColumn('todo');
+              setShowNewCardModal(true);
+            }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
+          >
+            <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
+            <span>Add Card</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 p-6 overflow-x-auto">
@@ -278,6 +252,7 @@ export default function KanbanBoard() {
                       setShowNewCardModal(true);
                     }}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                    title="Adicionar card"
                   >
                     <i className="ri-add-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
                   </button>
@@ -300,7 +275,7 @@ export default function KanbanBoard() {
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">{card.description}</p>
 
                     <div className="flex flex-wrap gap-1 mb-3">
-                      {card.tags.map(tag => (
+                      {card.tags && card.tags.map(tag => (
                         <span key={tag} className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
                           {tag}
                         </span>
@@ -309,10 +284,10 @@ export default function KanbanBoard() {
 
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>{card.assignee}</span>
-                      {card.dueDate && (
+                      {card.due_date && (
                         <span className="flex items-center space-x-1">
                           <i className="ri-calendar-line w-3 h-3 flex items-center justify-center"></i>
-                          <span>{new Date(card.dueDate).toLocaleDateString()}</span>
+                          <span>{new Date(card.due_date).toLocaleDateString()}</span>
                         </span>
                       )}
                     </div>
@@ -369,6 +344,7 @@ export default function KanbanBoard() {
                   value={newCard.priority}
                   onChange={(e) => setNewCard({ ...newCard, priority: e.target.value as 'low' | 'medium' | 'high' })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm pr-8"
+                  title="Selecionar prioridade"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -383,6 +359,7 @@ export default function KanbanBoard() {
                   value={newCard.dueDate}
                   onChange={(e) => setNewCard({ ...newCard, dueDate: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  title="Data de vencimento"
                 />
               </div>
             </div>
@@ -404,6 +381,14 @@ export default function KanbanBoard() {
           </div>
         </div>
       )}
+      
+      {/* Share Board Modal */}
+      <ShareBoardModal
+        boardId={activeBoard.id}
+        boardTitle={activeBoard.title}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
     </div>
   );
 }

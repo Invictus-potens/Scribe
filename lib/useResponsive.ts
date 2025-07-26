@@ -78,20 +78,14 @@ export function useResponsive(): ScreenSize {
       });
     }
 
-    // Set initial size
     updateScreenSize();
-
-    // Add event listener
     window.addEventListener('resize', updateScreenSize);
-
-    // Cleanup
     return () => window.removeEventListener('resize', updateScreenSize);
   }, []);
 
   return screenSize;
 }
 
-// Hook para detectar orientação do dispositivo
 export function useOrientation() {
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('landscape');
 
@@ -115,7 +109,6 @@ export function useOrientation() {
   return orientation;
 }
 
-// Hook para detectar se o dispositivo tem touch
 export function useTouchDevice() {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
 
@@ -128,7 +121,6 @@ export function useTouchDevice() {
   return isTouchDevice;
 }
 
-// Hook para detectar densidade de pixels
 export function usePixelDensity() {
   const [pixelDensity, setPixelDensity] = useState(1);
 

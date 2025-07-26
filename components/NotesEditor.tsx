@@ -152,7 +152,6 @@ export default function NotesEditor({
       }
     }
   }, [checkForRealChanges, hasUnsavedChanges, selectedNote, editor, setHasUnsavedChanges]);
-
   const handleSave = async () => {
     if (!selectedNote) return;
 

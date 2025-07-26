@@ -212,6 +212,85 @@ export default function NotesEditor({
       alert('An unexpected error occurred while saving the note');
     }
   };
+  }, [selectedNote, editor, title, tags, isPinned, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved]);
+
+  // Atualizar o ref da função de salvar sempre que handleSave mudar
+  useEffect(() => {
+    saveFunctionRef.current = handleSave;
+  }, [handleSave]);
+
+  // Passar a função de salvar para o componente pai apenas uma vez
+  useEffect(() => {
+    if (setSaveNoteRef) {
+      setSaveNoteRef(saveFunctionRef.current || (async () => {}));
+    }
+  }, [setSaveNoteRef]);
+
+  useEffect(() => {
+    if (selectedNote && editor) {
+      setTitle(selectedNote.title || '');
+      setTags(selectedNote.tags || []);
+      setIsPinned(selectedNote.is_pinned || false);
+      setHasUnsavedChanges(false);
+      
+      // Update editor content
+      editor.commands.setContent(selectedNote.content || '');
+    }
+  }, [selectedNote, editor, setHasUnsavedChanges]);
+
+  // Verificar mudanças não salvas ao fechar a página
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'Você tem mudanças não salvas. Tem certeza que deseja sair?';
+        return 'Você tem mudanças não salvas. Tem certeza que deseja sair?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Verificar mudanças quando título, tags ou pin mudarem
+  useEffect(() => {
+    if (selectedNote && editor) {
+      const hasRealChanges = checkForRealChanges();
+      if (hasRealChanges !== hasUnsavedChanges) {
+        setHasUnsavedChanges(hasRealChanges);
+      }
+    }
+  }, [checkForRealChanges, hasUnsavedChanges, selectedNote, editor, setHasUnsavedChanges]);
+
+  const handleSaveContent = async (content: string) => {
+    if (!selectedNote || !selectedNote.id) return;
+
+    try {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
+
+      const updatedNote = {
+        ...selectedNote,
+        content,
+      };
+
+      const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
+      if (error) {
+        console.error('Error updating note content:', error);
+        return;
+      }
+      setSelectedNote(data);
+      setHasUnsavedChanges(false);
+      if (onNoteSaved) {
+        onNoteSaved();
+      }
+    } catch (error) {
+      console.error('Error saving note content:', error);
+    }
+  };
 
   const handleAddTag = () => {
     if (newTag.trim() && !tags.includes(newTag.trim())) {

@@ -9,6 +9,7 @@ oooooooooooi
 
 import { useState, useEffect } from 'react';
 import { supabase, authHelpers } from '../lib/supabase';
+import { useResponsive } from '../lib/useResponsive';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import NotesEditor from '../components/NotesEditor';
@@ -16,8 +17,10 @@ import KanbanBoard from '../components/KanbanBoard';
 import Calendar from '../components/Calendar';
 import AIAssistant from '../components/AIAssistant';
 import AuthModal from '../components/AuthModal';
+import ResponsiveDebug from '../components/ResponsiveDebug';
 
 export default function Home() {
+  const screenSize = useResponsive();
   const [activeView, setActiveView] = useState('notes');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -126,15 +129,15 @@ export default function Home() {
   // Show loading screen while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i className="ri-loader-4-line w-8 h-8 text-white animate-spin"></i>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center content-padding">
+        <div className="text-center max-w-2xl mx-auto">
+          <div className="w-responsive-xl h-responsive-xl bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i className="ri-loader-4-line w-responsive-lg h-responsive-lg text-white animate-spin"></i>
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+          <h2 className="text-responsive-2xl font-bold text-gray-800 dark:text-white mb-2">
             Carregando...
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-responsive-base text-gray-600 dark:text-gray-400">
             Preparando seu workspace
           </p>
         </div>
@@ -144,13 +147,13 @@ export default function Home() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-6xl font-bold text-gray-800 dark:text-white mb-4">Scribe</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">Seu Workspace de Produtividade Definitivo</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center content-padding">
+        <div className="text-center max-w-4xl mx-auto">
+          <h1 className="text-responsive-5xl font-bold text-gray-800 dark:text-white mb-4">Scribe</h1>
+          <p className="text-responsive-xl text-gray-600 dark:text-gray-300 mb-8">Seu Workspace de Produtividade Definitivo</p>
           <button
             onClick={() => setShowAuthModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors whitespace-nowrap"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-responsive-xl py-responsive-md rounded-lg font-semibold transition-colors whitespace-nowrap text-responsive-lg"
           >
             Começar
           </button>
@@ -194,7 +197,7 @@ export default function Home() {
             />
           )}
           
-          <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} p-6`}>
+          <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} content-padding`}>
             {activeView === 'notes' && (
               <NotesEditor 
                 selectedFolder={selectedFolder}
@@ -282,6 +285,9 @@ export default function Home() {
           </div>
         </div>
       )}
+      
+      {/* Debug component - set show={true} to enable */}
+      <ResponsiveDebug show={false} />
     </div>
   );
 }

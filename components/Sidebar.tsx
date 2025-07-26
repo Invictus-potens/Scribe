@@ -188,7 +188,7 @@ export default function Sidebar({
 
   if (loading) {
     return (
-      <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4">
+      <div className="sidebar-width bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4">
         <div className="flex items-center justify-center h-32">
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
             <i className="ri-loader-4-line w-4 h-4 text-white animate-spin"></i>
@@ -199,7 +199,7 @@ export default function Sidebar({
   }
 
   return (
-    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <div className="sidebar-width bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">

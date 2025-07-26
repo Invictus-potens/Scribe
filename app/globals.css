@@ -3,6 +3,169 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Variables for responsive design */
+:root {
+  --sidebar-width-xs: 280px;
+  --sidebar-width-sm: 320px;
+  --sidebar-width-md: 360px;
+  --sidebar-width-lg: 400px;
+  --sidebar-width-xl: 440px;
+  --sidebar-width-2xl: 480px;
+  --sidebar-width-3xl: 520px;
+  --sidebar-width-4xl: 560px;
+  --sidebar-width-5xl: 600px;
+  
+  --header-height-xs: 60px;
+  --header-height-sm: 64px;
+  --header-height-md: 68px;
+  --header-height-lg: 72px;
+  --header-height-xl: 76px;
+  --header-height-2xl: 80px;
+  --header-height-3xl: 84px;
+  --header-height-4xl: 88px;
+  --header-height-5xl: 92px;
+  
+  --content-padding-xs: 1rem;
+  --content-padding-sm: 1.25rem;
+  --content-padding-md: 1.5rem;
+  --content-padding-lg: 2rem;
+  --content-padding-xl: 2.5rem;
+  --content-padding-2xl: 3rem;
+  --content-padding-3xl: 3.5rem;
+  --content-padding-4xl: 4rem;
+  --content-padding-5xl: 4.5rem;
+}
+
+/* Responsive breakpoints */
+@media (min-width: 475px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-xs);
+    --header-height: var(--header-height-xs);
+    --content-padding: var(--content-padding-xs);
+  }
+}
+
+@media (min-width: 640px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-sm);
+    --header-height: var(--header-height-sm);
+    --content-padding: var(--content-padding-sm);
+  }
+}
+
+@media (min-width: 768px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-md);
+    --header-height: var(--header-height-md);
+    --content-padding: var(--content-padding-md);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-lg);
+    --header-height: var(--header-height-lg);
+    --content-padding: var(--content-padding-lg);
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-xl);
+    --header-height: var(--header-height-xl);
+    --content-padding: var(--content-padding-xl);
+  }
+}
+
+@media (min-width: 1536px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-2xl);
+    --header-height: var(--header-height-2xl);
+    --content-padding: var(--content-padding-2xl);
+  }
+}
+
+@media (min-width: 1920px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-3xl);
+    --header-height: var(--header-height-3xl);
+    --content-padding: var(--content-padding-3xl);
+  }
+}
+
+@media (min-width: 2560px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-4xl);
+    --header-height: var(--header-height-4xl);
+    --content-padding: var(--content-padding-4xl);
+  }
+}
+
+@media (min-width: 3840px) {
+  :root {
+    --sidebar-width: var(--sidebar-width-5xl);
+    --header-height: var(--header-height-5xl);
+    --content-padding: var(--content-padding-5xl);
+  }
+}
+
+/* Responsive utility classes */
+@layer utilities {
+  .sidebar-width {
+    width: var(--sidebar-width);
+  }
+  
+  .header-height {
+    height: var(--header-height);
+  }
+  
+  .content-padding {
+    padding: var(--content-padding);
+  }
+  
+  .content-padding-x {
+    padding-left: var(--content-padding);
+    padding-right: var(--content-padding);
+  }
+  
+  .content-padding-y {
+    padding-top: var(--content-padding);
+    padding-bottom: var(--content-padding);
+  }
+  
+  /* Responsive text sizes */
+  .text-responsive-xs { font-size: clamp(0.75rem, 2vw, 0.875rem); }
+  .text-responsive-sm { font-size: clamp(0.875rem, 2.5vw, 1rem); }
+  .text-responsive-base { font-size: clamp(1rem, 3vw, 1.125rem); }
+  .text-responsive-lg { font-size: clamp(1.125rem, 3.5vw, 1.25rem); }
+  .text-responsive-xl { font-size: clamp(1.25rem, 4vw, 1.5rem); }
+  .text-responsive-2xl { font-size: clamp(1.5rem, 5vw, 2rem); }
+  .text-responsive-3xl { font-size: clamp(1.875rem, 6vw, 2.5rem); }
+  .text-responsive-4xl { font-size: clamp(2.25rem, 7vw, 3rem); }
+  .text-responsive-5xl { font-size: clamp(3rem, 8vw, 4rem); }
+  
+  /* Responsive spacing */
+  .space-responsive-xs { gap: clamp(0.25rem, 1vw, 0.5rem); }
+  .space-responsive-sm { gap: clamp(0.5rem, 1.5vw, 1rem); }
+  .space-responsive-md { gap: clamp(1rem, 2vw, 1.5rem); }
+  .space-responsive-lg { gap: clamp(1.5rem, 3vw, 2rem); }
+  .space-responsive-xl { gap: clamp(2rem, 4vw, 3rem); }
+  
+  /* Responsive padding */
+  .p-responsive-xs { padding: clamp(0.25rem, 1vw, 0.5rem); }
+  .p-responsive-sm { padding: clamp(0.5rem, 1.5vw, 1rem); }
+  .p-responsive-md { padding: clamp(1rem, 2vw, 1.5rem); }
+  .p-responsive-lg { padding: clamp(1.5rem, 3vw, 2rem); }
+  .p-responsive-xl { padding: clamp(2rem, 4vw, 3rem); }
+  
+  /* Responsive margin */
+  .m-responsive-xs { margin: clamp(0.25rem, 1vw, 0.5rem); }
+  .m-responsive-sm { margin: clamp(0.5rem, 1.5vw, 1rem); }
+  .m-responsive-md { margin: clamp(1rem, 2vw, 1.5rem); }
+  .m-responsive-lg { margin: clamp(1.5rem, 3vw, 2rem); }
+  .m-responsive-xl { margin: clamp(2rem, 4vw, 3rem); }
+}
+
 /* TipTap Editor Styles */
 .ProseMirror {
   outline: none;
@@ -120,6 +283,9 @@
 /* Draggable images */
 .draggable-image {
   cursor: move;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
   user-select: none;
   position: relative;
   display: inline-block;

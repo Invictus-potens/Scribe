@@ -32,10 +32,10 @@ export default function Header({
   ];
 
   return (
-    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-6">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white font-pacifico">Scribe</h1>
+    <header className="header-height bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 content-padding-x flex items-center">
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center space-responsive-lg">
+          <h1 className="text-responsive-2xl font-bold text-gray-800 dark:text-white font-pacifico">Scribe</h1>
           
           <div className="relative">
             <button
@@ -86,6 +86,7 @@ export default function Header({
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title={darkMode ? "Mudar para modo claro" : "Mudar para modo escuro"}
           >
             <i className={`${darkMode ? 'ri-sun-line' : 'ri-moon-line'} w-5 h-5 flex items-center justify-center text-gray-600 dark:text-gray-400`}></i>
           </button>
@@ -93,6 +94,7 @@ export default function Header({
           <button
             onClick={onLogout}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            title="Sair"
           >
             <i className="ri-logout-circle-line w-5 h-5 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
           </button>

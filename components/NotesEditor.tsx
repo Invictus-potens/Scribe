@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -111,7 +111,7 @@ export default function NotesEditor({
   }, [selectedNote, editor, setHasUnsavedChanges]);
 
   // Verificar se há mudanças reais comparando com o conteúdo original
-  const checkForRealChanges = () => {
+  const checkForRealChanges = useCallback(() => {
     if (!selectedNote || !editor) return false;
     
     const currentContent = editor.getHTML();
@@ -127,7 +127,7 @@ export default function NotesEditor({
            currentTitle !== originalTitle || 
            currentTags !== originalTags || 
            currentPinned !== originalPinned;
-  };
+  }, [selectedNote, editor, title, tags, isPinned]);
 
   // Verificar mudanças não salvas ao fechar a página
   useEffect(() => {
@@ -212,19 +212,13 @@ export default function NotesEditor({
       alert('An unexpected error occurred while saving the note');
     }
   };
-  }, [selectedNote, editor, title, tags, isPinned, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved]);
 
   // Atualizar o ref da função de salvar sempre que handleSave mudar
   useEffect(() => {
     saveFunctionRef.current = handleSave;
   }, [handleSave]);
 
-  // Passar a função de salvar para o componente pai apenas uma vez
-  useEffect(() => {
-    if (setSaveNoteRef) {
-      setSaveNoteRef(saveFunctionRef.current || (async () => {}));
-    }
-  }, [setSaveNoteRef]);
+
 
   useEffect(() => {
     if (selectedNote && editor) {

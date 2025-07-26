@@ -1,19 +1,5 @@
 /*
- * =================================================================================
- * ✅ RESOLVIDO: Refatoração do componente/lógica de formatação de texto (Listas)
- * =================================================================================
- * * Baseado em feedback de usuário recebido em 25/07/2025.
- * * Itens corrigidos:
- * * 1. ✅ [BUG] As funções para criar listas (ordenada e não ordenada) agora funcionam corretamente com TipTap.
- * * 2. ✅ [PERFORMANCE] O delay na UI foi eliminado com a implementação do TipTap.
- * * 3. ✅ [UI/UX] Implementado estado ativo visualmente claro para todos os botões de formatação.
- * * 
- * * Implementações adicionais:
- * * - Migração completa para TipTap editor
- * * - Auto-save em tempo real
- * * - Suporte a formatação avançada (títulos, alinhamento, código, etc.)
- * * - Estilos otimizados para modo claro e escuro
- * * - Tooltips informativos em português
+oooooooooooi
  * * 
  * * Data de conclusão: 25/07/2025
  * */
@@ -128,21 +114,7 @@ export default function Home() {
     if (hasUnsavedChanges) {
       // Mostrar modal e executar ação após confirmação
       setPendingAction(() => async () => {
-        // Salvar a nota atual antes de executar a ação
-        try {
-          const { user } = await authHelpers.getCurrentUser();
-          if (user) {
-            // Chamar a função de salvar se disponível
-            if (saveNoteRef && typeof saveNoteRef === 'function') {
-              await saveNoteRef();
-            } else {
-              console.warn('saveNoteRef não está disponível ou não é uma função');
-            }
-            console.log('Salvando nota antes de executar ação...');
-          }
-        } catch (error) {
-          console.error('Error saving note:', error);
-        }
+        // Executar a ação diretamente
         action();
       });
       setShowUnsavedModal(true);

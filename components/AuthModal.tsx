@@ -85,6 +85,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setErrors({});
     
     try {
       if (showPasswordReset) {
@@ -92,6 +93,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
           redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`
         });
         if (error) {
+          console.error('Password reset error:', error);
           setErrors({ general: error.message });
         } else {
           setResetEmailSent(true);
@@ -99,28 +101,39 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
       } else if (isLogin) {
         const { error } = await authHelpers.signIn(formData.email, formData.password);
         if (error) {
+          console.error('Login error:', error);
           setErrors({ general: error.message });
         } else {
           onLogin();
         }
       } else {
         // Handle signup
+        console.log('Starting signup process...');
         const { data, error } = await authHelpers.signUp(formData.email, formData.password, formData.name);
+        
         if (error) {
+          console.error('Signup error:', error);
           setErrors({ general: error.message });
         } else {
           // Check if user needs email confirmation
           if (data.user && !data.session) {
             // User created but needs email confirmation
+            console.log('User created, email confirmation required');
             setShowEmailConfirmation(true);
           } else if (data.session) {
             // User created and automatically signed in (email confirmation not required)
+            console.log('User created and signed in automatically');
             onLogin();
+          } else {
+            // Fallback case
+            console.log('Signup completed but no clear session state');
+            setShowEmailConfirmation(true);
           }
         }
       }
     } catch (error) {
-      setErrors({ general: 'Ocorreu um erro inesperado' });
+      console.error('Unexpected error in handleSubmit:', error);
+      setErrors({ general: 'Ocorreu um erro inesperado. Tente novamente.' });
     } finally {
       setIsLoading(false);
     }

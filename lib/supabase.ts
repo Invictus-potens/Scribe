@@ -91,16 +91,64 @@ export interface KanbanCard {
 // Database helper functions
 export const authHelpers = {
   async signUp(email: string, password: string, fullName?: string) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
+    try {
+      console.log('Starting signup process for:', email);
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
         },
-      },
-    })
-    return { data, error }
+      });
+      
+      if (error) {
+        console.error('Supabase auth signup error:', error);
+        return { data, error };
+      }
+      
+      console.log('Auth signup successful, user:', data.user?.id);
+      
+      // If user was created but needs email confirmation
+      if (data.user && !data.session) {
+        console.log('User created, email confirmation required');
+        return { data, error: null };
+      }
+      
+      // If user was created and automatically signed in
+      if (data.user && data.session) {
+        console.log('User created and signed in automatically');
+        
+        // Try to ensure user profile exists
+        try {
+          const { error: profileError } = await this.ensureUserProfile(
+            data.user.id,
+            data.user.email || '',
+            fullName
+          );
+          
+          if (profileError) {
+            console.error('Error ensuring user profile:', profileError);
+            // Don't fail the signup if profile creation fails
+            // The user can still use the app
+          }
+        } catch (profileErr) {
+          console.error('Unexpected error ensuring user profile:', profileErr);
+        }
+        
+        return { data, error: null };
+      }
+      
+      return { data, error: null };
+    } catch (error) {
+      console.error('Unexpected error in signUp:', error);
+      return { 
+        data: null, 
+        error: { message: 'Erro inesperado durante o registro. Tente novamente.' } 
+      };
+    }
   },
 
   async signIn(email: string, password: string) {
@@ -129,24 +177,68 @@ export const authHelpers = {
   // New function to ensure user profile exists
   async ensureUserProfile(userId: string, email: string, fullName?: string) {
     try {
-      // Use the database function to ensure user profile exists
-      const { data, error } = await supabase
+      console.log('Ensuring user profile for:', userId, email);
+      
+      // First check if profile already exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error checking existing profile:', checkError);
+        return { error: checkError };
+      }
+
+      if (existingProfile) {
+        console.log('User profile already exists');
+        return { data: existingProfile };
+      }
+
+      // Profile doesn't exist, try to create it
+      console.log('Creating new user profile');
+      
+      // Try using the database function first
+      const { data: functionResult, error: functionError } = await supabase
         .rpc('ensure_user_profile', {
           user_id: userId,
           user_email: email,
           user_full_name: fullName || null
         });
 
-      if (error) {
-        console.error('Error ensuring user profile:', error);
-        return { error };
+      if (functionError) {
+        console.error('Database function error:', functionError);
+        
+        // Fallback: try direct insert
+        console.log('Trying direct insert as fallback');
+        const { data: insertData, error: insertError } = await supabase
+          .from('users')
+          .insert([{
+            id: userId,
+            email: email,
+            full_name: fullName || null
+          }])
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Direct insert error:', insertError);
+          return { error: insertError };
+        }
+
+        console.log('User profile created via direct insert');
+        return { data: insertData };
       }
 
       // If the database function returns false, it means there was an issue
-      if (data === false) {
+      if (functionResult === false) {
+        console.error('Database function returned false');
         return { error: { message: 'Failed to create user profile' } };
       }
 
+      console.log('User profile created via database function');
+      
       // Get the user profile to return
       const { data: userProfile, error: profileError } = await supabase
         .from('users')

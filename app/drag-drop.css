@@ -1,12 +1,8 @@
-/* Estilos para drag and drop */
+/* Animações personalizadas para drag and drop */
 
 .draggable-note {
-  transition: all 0.2s ease;
-  cursor: grab;
-}
-
-.draggable-note:active {
-  cursor: grabbing;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity, box-shadow;
 }
 
 .draggable-note:hover {
@@ -14,104 +10,129 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.draggable-note.dragging {
-  opacity: 0.5;
-  transform: rotate(2deg) scale(1.02);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+.draggable-note:active {
+  transform: translateY(0px);
+  transition: all 0.1s ease-out;
 }
 
-.folder-drop-zone {
-  transition: all 0.2s ease;
-  border: 2px dashed transparent;
+/* Animação para o item sendo arrastado */
+.draggable-note[data-dragging="true"] {
+  animation: dragPulse 0.6s ease-in-out infinite alternate;
 }
 
-.folder-drop-zone.drag-over {
-  border-color: #3b82f6;
-  background-color: rgba(59, 130, 246, 0.1);
-  transform: scale(1.02);
+@keyframes dragPulse {
+  0% {
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    box-shadow: 0 12px 35px rgba(59, 130, 246, 0.5);
+  }
 }
 
-.folder-drop-zone:hover {
-  border-color: #d1d5db;
-  background-color: rgba(59, 130, 246, 0.05);
-}
-
-/* Indicador de arrasto */
-.drag-handle {
-  cursor: grab;
-  transition: all 0.2s ease;
-}
-
-.drag-handle:hover {
-  background-color: rgba(59, 130, 246, 0.1);
-  border-radius: 50%;
-}
-
-.drag-handle:active {
-  cursor: grabbing;
-  background-color: rgba(59, 130, 246, 0.2);
-}
-
-/* Animações para o overlay */
+/* Animação para o overlay de arrasto */
 .drag-overlay {
-  animation: dragOverlayAppear 0.2s ease-out;
+  animation: overlayFloat 0.3s ease-out;
 }
 
-@keyframes dragOverlayAppear {
-  from {
+@keyframes overlayFloat {
+  0% {
     opacity: 0;
-    transform: scale(0.8) rotate(-2deg);
+    transform: scale(0.8) rotate(0deg);
   }
-  to {
-    opacity: 0.9;
-    transform: scale(1.05) rotate(2deg);
+  100% {
+    opacity: 0.95;
+    transform: scale(1.1) rotate(1deg);
   }
 }
 
-/* Estilos para áreas de drop */
+/* Animação para espaços de drop */
 .drop-zone {
-  min-height: 60px;
-  border: 2px dashed #d1d5db;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  background-color: rgba(59, 130, 246, 0.05);
+  transition: all 0.2s ease-out;
 }
 
-.drop-zone.drag-over {
-  border-color: #3b82f6;
-  background-color: rgba(59, 130, 246, 0.1);
+.drop-zone[data-over="true"] {
   transform: scale(1.02);
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: rgb(59, 130, 246);
 }
 
-.drop-zone-text {
-  color: #6b7280;
-  font-size: 0.875rem;
-  text-align: center;
+/* Animação para reordenação */
+.sortable-item {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.drop-zone.drag-over .drop-zone-text {
-  color: #3b82f6;
-  font-weight: 500;
+.sortable-item[data-sorting="true"] {
+  transition: none;
 }
 
-/* Estilos para modo escuro */
-.dark .drop-zone {
-  border-color: #4b5563;
+/* Melhorar a responsividade do cursor */
+.draggable-note {
+  cursor: grab;
+}
+
+.draggable-note:active {
+  cursor: grabbing;
+}
+
+/* Efeito de hover mais suave */
+.draggable-note:hover {
   background-color: rgba(59, 130, 246, 0.05);
 }
 
-.dark .drop-zone.drag-over {
-  border-color: #60a5fa;
-  background-color: rgba(96, 165, 250, 0.1);
+/* Animação para feedback visual durante o arrasto */
+.draggable-note[data-dragging="true"] {
+  z-index: 1000;
+  pointer-events: none;
 }
 
-.dark .drop-zone-text {
-  color: #9ca3af;
+/* Melhorar a visibilidade do handle de arrasto */
+.draggable-note .drag-handle {
+  opacity: 0.3;
+  transition: opacity 0.2s ease-out;
 }
 
-.dark .drop-zone.drag-over .drop-zone-text {
-  color: #60a5fa;
+.draggable-note:hover .drag-handle {
+  opacity: 0.7;
+}
+
+.draggable-note[data-dragging="true"] .drag-handle {
+  opacity: 1;
+}
+
+/* Animação de entrada para as notas */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Melhorar a performance das animações */
+.draggable-note {
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Efeito de hover mais responsivo */
+.draggable-note:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Animação para quando uma nota é movida */
+.draggable-note.moving {
+  animation: moveNote 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes moveNote {
+  0% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 } 

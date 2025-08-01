@@ -5,8 +5,20 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase, authHelpers } from '../lib/supabase';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay as DndKitDragOverlay,
+} from '@dnd-kit/core';
+import { arrayMove } from '@dnd-kit/sortable';
+import { supabase, authHelpers, notesHelpers } from '../lib/supabase';
 import { useResponsive } from '../lib/useResponsive';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
@@ -16,6 +28,7 @@ import Calendar from '../components/Calendar';
 import AIAssistant from '../components/AIAssistant';
 import AuthModal from '../components/AuthModal';
 import ResponsiveDebug from '../components/ResponsiveDebug';
+import DragOverlay from '../components/DragOverlay';
 
 export default function Home() {
   const screenSize = useResponsive();
@@ -32,6 +45,17 @@ export default function Home() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+        delay: 100,
+      },
+    }),
+    useSensor(KeyboardSensor)
+  );
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -124,6 +148,123 @@ export default function Home() {
     }
   };
 
+  const handleNotesUpdate = useCallback(() => {
+    console.log('handleNotesUpdate chamado');
+    setNotesUpdateTrigger(prev => prev + 1);
+  }, []);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+
+    console.log('handleDragEnd chamado:', { active: active.id, over: over?.id, overType: over?.data?.current?.type });
+
+    if (!over) return;
+
+    // Se arrastou uma nota para uma pasta
+    if (over.data?.current?.type === 'folder' && active.data?.current?.type === 'note') {
+      const folderName = over.data.current.folderName;
+      const noteId = active.id as string;
+      
+      try {
+        const { user } = await authHelpers.getCurrentUser();
+        if (!user) return;
+
+        const noteToUpdate = notes.find(note => note.id === noteId);
+        if (!noteToUpdate) return;
+
+        const updatedNote = {
+          ...noteToUpdate,
+          folder: folderName === 'all' ? undefined : folderName,
+        };
+
+        const { error } = await notesHelpers.updateNote(noteId, updatedNote);
+        if (error) {
+          console.error('Error moving note to folder:', error);
+          alert(`Erro ao mover nota: ${error.message}`);
+        } else {
+          console.log('Nota movida com sucesso para:', folderName);
+          
+          // Atualizar o estado local imediatamente
+          const updatedNotes = notes.map(note => 
+            note.id === noteId 
+              ? { ...note, folder: folderName === 'all' ? undefined : folderName }
+              : note
+          );
+          setNotes(updatedNotes);
+          
+          // Feedback visual de sucesso
+          const movedNote = document.querySelector(`[data-note-id="${noteId}"]`);
+          if (movedNote) {
+            movedNote.classList.add('moving');
+            setTimeout(() => {
+              movedNote.classList.remove('moving');
+            }, 400);
+          }
+          
+          // Recarregar as notas do banco para garantir sincronização
+          setNotesUpdateTrigger(prev => {
+            console.log('Atualizando trigger de notas:', prev + 1);
+            return prev + 1;
+          });
+        }
+      } catch (error) {
+        console.error('Error moving note:', error);
+        alert('Erro inesperado ao mover a nota');
+      }
+    }
+    // Se arrastou para reordenar dentro da mesma pasta
+    else if (active.id !== over.id && active.data?.current?.type === 'note' && over.data?.current?.type === 'note') {
+      const oldIndex = notes.findIndex(note => note.id === active.id);
+      const newIndex = notes.findIndex(note => note.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        try {
+          const { user } = await authHelpers.getCurrentUser();
+          if (!user) return;
+
+                     // Calcular nova ordem usando arrayMove
+           const newOrder = arrayMove(notes, oldIndex, newIndex);
+
+           // Atualizar o estado local imediatamente para feedback visual
+           setNotes(newOrder);
+
+           // Atualizar posições de todas as notas afetadas no banco
+           const updatePromises = newOrder.map((note, index) => {
+             const newPosition = index + 1;
+             return notesHelpers.updateNote(note.id, { position: newPosition });
+           });
+
+           await Promise.all(updatePromises);
+           
+           console.log('Notas reordenadas com sucesso');
+           
+           // Feedback visual de sucesso
+           const movedNoteElement = document.querySelector(`[data-note-id="${active.id}"]`);
+           if (movedNoteElement) {
+             movedNoteElement.classList.add('moving');
+             setTimeout(() => {
+               movedNoteElement.classList.remove('moving');
+             }, 400);
+           }
+           
+           // Recarregar as notas do banco para garantir sincronização
+           setNotesUpdateTrigger(prev => {
+             console.log('Atualizando trigger de notas após reordenação:', prev + 1);
+             return prev + 1;
+           });
+        } catch (error) {
+          console.error('Error reordering notes:', error);
+          alert('Erro ao reordenar as notas');
+        }
+      }
+    }
+  };
+
   // Show loading screen while checking authentication
   if (isLoading) {
     return (
@@ -178,51 +319,71 @@ export default function Home() {
         setSearchTerm={setSearchTerm}
       />
       
-      <div className="flex flex-1 overflow-hidden">
-        {activeView === 'notes' && (
-          <Sidebar 
-            selectedFolder={selectedFolder}
-            setSelectedFolder={setSelectedFolder}
-            activeView={activeView}
-            selectedNote={selectedNote}
-            setSelectedNote={setSelectedNote}
-            searchTerm={searchTerm}
-            onNotesUpdate={() => setNotesUpdateTrigger(prev => prev + 1)}
-            onNotesLoaded={setNotes}
-            hasUnsavedChanges={hasUnsavedChanges}
-            onCheckUnsavedChanges={checkUnsavedChanges}
-          />
-        )}
-        
-        <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} content-padding overflow-auto`}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex flex-1 overflow-hidden">
           {activeView === 'notes' && (
-            <NotesEditor 
-              selectedFolder={selectedFolder}
-              selectedNote={selectedNote}
-              setSelectedNote={setSelectedNote}
-              searchTerm={searchTerm}
-              onNoteSaved={handleNoteSaved}
-              notes={notes}
-              hasUnsavedChanges={hasUnsavedChanges}
-              setHasUnsavedChanges={setHasUnsavedChanges}
-              onUnsavedChangesConfirm={() => {
-                if (pendingAction) {
-                  pendingAction();
+                         <Sidebar 
+               selectedFolder={selectedFolder}
+               setSelectedFolder={setSelectedFolder}
+               activeView={activeView}
+               selectedNote={selectedNote}
+               setSelectedNote={setSelectedNote}
+               searchTerm={searchTerm}
+               onNotesUpdate={handleNotesUpdate}
+               onNotesLoaded={setNotes}
+               hasUnsavedChanges={hasUnsavedChanges}
+               onCheckUnsavedChanges={checkUnsavedChanges}
+             />
+          )}
+          
+          <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} content-padding overflow-auto`}>
+            {activeView === 'notes' && (
+              <NotesEditor 
+                selectedFolder={selectedFolder}
+                selectedNote={selectedNote}
+                setSelectedNote={setSelectedNote}
+                searchTerm={searchTerm}
+                onNoteSaved={handleNoteSaved}
+                notes={notes}
+                hasUnsavedChanges={hasUnsavedChanges}
+                setHasUnsavedChanges={setHasUnsavedChanges}
+                onUnsavedChangesConfirm={() => {
+                  if (pendingAction) {
+                    pendingAction();
+                    setPendingAction(null);
+                    setShowUnsavedModal(false);
+                  }
+                }}
+                onUnsavedChangesCancel={() => {
                   setPendingAction(null);
                   setShowUnsavedModal(false);
-                }
-              }}
-              onUnsavedChangesCancel={() => {
-                setPendingAction(null);
-                setShowUnsavedModal(false);
+                }}
+              />
+            )}
+            {activeView === 'kanban' && <KanbanBoard />}
+            {activeView === 'calendar' && <Calendar />}
+            {activeView === 'ai' && <AIAssistant />}
+          </main>
+        </div>
+
+        {/* Drag Overlay */}
+        <DndKitDragOverlay>
+          {activeDragId ? (
+            <DragOverlay 
+              note={notes.find(note => note.id === activeDragId) || {
+                id: '',
+                title: '',
+                content: '',
               }}
             />
-          )}
-          {activeView === 'kanban' && <KanbanBoard />}
-          {activeView === 'calendar' && <Calendar />}
-          {activeView === 'ai' && <AIAssistant />}
-        </main>
-      </div>
+          ) : null}
+        </DndKitDragOverlay>
+      </DndContext>
 
       {/* Modal Global de Mudanças Não Salvas */}
       {showUnsavedModal && (

@@ -1,28 +1,14 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay as DndKitDragOverlay,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import DragOverlay from './DragOverlay';
 
 interface Note {
   id: string;
@@ -32,6 +18,7 @@ interface Note {
   tags?: string[];
   is_pinned?: boolean;
   updated_at?: string;
+  position?: number;
 }
 
 interface DraggableNotesListProps {
@@ -72,8 +59,9 @@ function SortableNoteItem({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transition: isDragging ? 'none' : transition,
+    opacity: isDragging ? 0.8 : 1,
+    zIndex: isDragging ? 1000 : 'auto',
   };
 
   const stripHtml = (html: string) => {
@@ -99,18 +87,22 @@ function SortableNoteItem({
       {...attributes}
       {...listeners}
       onClick={handleClick}
-      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 draggable-note ${
+      data-dragging={isDragging}
+      data-note-id={note.id}
+      className={`p-3 rounded-lg cursor-pointer transition-all duration-300 ease-out draggable-note ${
         isSelected
           ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 border-2 border-blue-300 dark:border-blue-600'
           : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-transparent'
       } ${
-        isDragging ? 'rotate-2 scale-105 shadow-lg' : ''
+        isDragging 
+          ? 'rotate-1 scale-110 shadow-2xl border-2 border-blue-400 dark:border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+          : ''
       }`}
     >
       <div className="flex items-start space-x-3">
         {/* Handle para arrastar */}
         <div className="flex-shrink-0 mt-1">
-          <div className="w-2 h-2 bg-gray-400 rounded-full cursor-grab active:cursor-grabbing"></div>
+          <div className="w-2 h-2 bg-gray-400 rounded-full cursor-grab active:cursor-grabbing drag-handle"></div>
         </div>
         
         {/* Conteúdo da nota */}
@@ -159,49 +151,22 @@ export default function DraggableNotesList({
   onNotesUpdate,
   onCheckUnsavedChanges
 }: DraggableNotesListProps) {
-  const [activeId, setActiveId] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
-  const sortedNotes = notes.sort((a, b) => {
-    // Pinned notes first
-    if (a.is_pinned && !b.is_pinned) return -1;
-    if (!a.is_pinned && b.is_pinned) return 1;
-    // Then by updated_at
-    return new Date(b.updated_at || '').getTime() - new Date(a.updated_at || '').getTime();
-  });
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-
-    if (!over) return;
-
-    // Se arrastou para reordenar
-    if (active.id !== over.id) {
-      const oldIndex = sortedNotes.findIndex(note => note.id === active.id);
-      const newIndex = sortedNotes.findIndex(note => note.id === over.id);
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        const newOrder = arrayMove(sortedNotes, oldIndex, newIndex);
-        // Aqui você pode implementar a lógica para salvar a nova ordem no banco
-        console.log('New order:', newOrder.map(note => note.id));
+  const sortedNotes = useMemo(() => {
+    return notes.sort((a, b) => {
+      // Pinned notes first
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      // Then by position (if available) or updated_at
+      if (a.position !== undefined && b.position !== undefined) {
+        return a.position - b.position;
       }
-    }
-  };
+      return new Date(b.updated_at || '').getTime() - new Date(a.updated_at || '').getTime();
+    });
+  }, [notes]);
+
+
 
   if (notes.length === 0) {
     return (
@@ -215,42 +180,27 @@ export default function DraggableNotesList({
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="space-y-2">
-        {/* Lista de notas arrastáveis */}
-        <SortableContext
-          items={sortedNotes.map(note => note.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {sortedNotes.map(note => (
-            <SortableNoteItem
-              key={note.id}
-              note={note}
-              isSelected={selectedNote?.id === note.id}
-              onSelect={() => setSelectedNote(note)}
-              onCheckUnsavedChanges={onCheckUnsavedChanges}
-            />
-          ))}
-        </SortableContext>
-      </div>
-
-      {/* Drag Overlay */}
-      <DndKitDragOverlay>
-        {activeId ? (
-          <DragOverlay 
-            note={sortedNotes.find(note => note.id === activeId) || {
-              id: '',
-              title: '',
-              content: '',
+    <div className="space-y-2">
+      {/* Lista de notas arrastáveis */}
+      <SortableContext
+        items={sortedNotes.map(note => note.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        {sortedNotes.map((note, index) => (
+          <SortableNoteItem
+            key={note.id}
+            note={note}
+            isSelected={selectedNote?.id === note.id}
+            onSelect={() => setSelectedNote(note)}
+            onCheckUnsavedChanges={onCheckUnsavedChanges}
+            style={{
+              animationDelay: `${index * 50}ms`,
+              animation: 'fadeInUp 0.3s ease-out forwards',
+              opacity: 0,
             }}
           />
-        ) : null}
-      </DndKitDragOverlay>
-    </DndContext>
+        ))}
+      </SortableContext>
+    </div>
   );
 } 

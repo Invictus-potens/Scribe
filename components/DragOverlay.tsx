@@ -22,7 +22,7 @@ export default function DragOverlay({ note }: DragOverlayProps) {
   };
 
   return (
-    <div className="p-3 rounded-lg bg-white dark:bg-gray-800 border-2 border-blue-300 dark:border-blue-600 shadow-xl opacity-90 transform rotate-2 scale-105 drag-overlay">
+    <div className="p-3 rounded-lg bg-white dark:bg-gray-800 border-2 border-blue-400 dark:border-blue-500 shadow-2xl opacity-95 transform rotate-1 scale-110 drag-overlay transition-all duration-200 ease-out">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2 mb-1">

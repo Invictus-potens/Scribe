@@ -52,6 +52,7 @@ export interface Note {
   tags?: string[]
   is_pinned?: boolean
   is_private?: boolean
+  position?: number
   created_at?: string
   updated_at?: string
 }
@@ -172,6 +173,8 @@ export const notesHelpers = {
       .from('notes')
       .select('*')
       .eq('user_id', userId)
+      .order('is_pinned', { ascending: false })
+      .order('position', { ascending: true })
       .order('updated_at', { ascending: false })
 
     if (folder && folder !== 'all') {

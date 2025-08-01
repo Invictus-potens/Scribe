@@ -2,22 +2,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragOverEvent,
-  DragStartEvent,
-  DragOverlay as DndKitDragOverlay,
-} from '@dnd-kit/core';
 import { notesHelpers, foldersHelpers, authHelpers, Note, Folder } from '../lib/supabase';
 import DraggableNotesList from './DraggableNotesList';
-import DragOverlay from './DragOverlay';
 import { useSortable } from '@dnd-kit/sortable';
+import { useDroppable } from '@dnd-kit/core';
 
 interface SidebarProps {
   selectedFolder: string;
@@ -49,11 +37,9 @@ function DraggableFolder({
   onDelete: (folder: Folder) => void;
 }) {
   const {
-    attributes,
-    listeners,
     setNodeRef,
     isOver,
-  } = useSortable({ 
+  } = useDroppable({ 
     id: `folder-${folder.name}`,
     data: {
       type: 'folder',
@@ -66,8 +52,6 @@ function DraggableFolder({
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
       className={`px-4 mb-2 transition-all duration-200 ${
         isOver ? 'scale-105' : ''
       }`}
@@ -118,11 +102,9 @@ function DraggableAllNotes({
   onDrop: (noteId: string, folderName: string) => void;
 }) {
   const {
-    attributes,
-    listeners,
     setNodeRef,
     isOver,
-  } = useSortable({ 
+  } = useDroppable({ 
     id: 'folder-all',
     data: {
       type: 'folder',
@@ -133,8 +115,6 @@ function DraggableAllNotes({
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
       className={`p-4 transition-all duration-200 ${
         isOver ? 'scale-105' : ''
       }`}
@@ -178,22 +158,12 @@ export default function Sidebar({
   const [folders, setFolders] = useState<Folder[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeId, setActiveId] = useState<string | null>(null);
-
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor)
-  );
-
   // Function to reload notes - wrapped in useCallback to prevent unnecessary re-renders
   const reloadNotes = useCallback(async () => {
+    console.log('Sidebar: reloadNotes chamado');
     try {
       const { user } = await authHelpers.getCurrentUser();
       if (!user) return;
@@ -202,6 +172,7 @@ export default function Sidebar({
       if (notesError) {
         console.error('Error loading notes:', notesError);
       } else {
+        console.log('Sidebar: notas recarregadas, total:', notesData?.length || 0);
         setNotes(notesData || []);
         if (onNotesLoaded) {
           onNotesLoaded(notesData || []);
@@ -239,13 +210,13 @@ export default function Sidebar({
     loadData();
   }, [reloadNotes]);
 
-  // Reload notes when parent component triggers update - using a ref to track updates
+  // Reload notes when parent component triggers update
   useEffect(() => {
     if (onNotesUpdate) {
-      // Only reload if we have a valid onNotesUpdate function
+      console.log('Sidebar: onNotesUpdate mudou, recarregando notas');
       reloadNotes();
     }
-  }, [reloadNotes]);
+  }, [onNotesUpdate, reloadNotes]);
 
   // Função para remover tags HTML e extrair texto puro
   const stripHtml = (html: string) => {
@@ -362,46 +333,7 @@ export default function Sidebar({
     }
   };
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
-
-    if (!over) return;
-
-    // Se arrastou uma nota para uma pasta
-    if (over.data?.current?.type === 'folder' && active.data?.current?.type === 'note') {
-      const folderName = over.data.current.folderName;
-      const noteId = active.id as string;
-      
-      try {
-        const { user } = await authHelpers.getCurrentUser();
-        if (!user) return;
-
-        const noteToUpdate = notes.find(note => note.id === noteId);
-        if (!noteToUpdate) return;
-
-        const updatedNote = {
-          ...noteToUpdate,
-          folder: folderName === 'all' ? undefined : folderName,
-        };
-
-        const { error } = await notesHelpers.updateNote(noteId, updatedNote);
-        if (error) {
-          console.error('Error moving note to folder:', error);
-          alert(`Erro ao mover nota: ${error.message}`);
-        } else {
-          onNotesUpdate?.();
-        }
-      } catch (error) {
-        console.error('Error moving note:', error);
-        alert('Erro inesperado ao mover a nota');
-      }
-    }
-  };
 
   if (loading) {
     return (
@@ -419,13 +351,7 @@ export default function Sidebar({
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
@@ -590,19 +516,6 @@ export default function Sidebar({
           </div>
         )}
 
-        {/* Drag Overlay */}
-        <DndKitDragOverlay>
-          {activeId ? (
-            <DragOverlay 
-              note={notes.find(note => note.id === activeId) || {
-                id: '',
-                title: '',
-                content: '',
-              }}
-            />
-          ) : null}
-        </DndKitDragOverlay>
       </div>
-    </DndContext>
-  );
+    );
 }

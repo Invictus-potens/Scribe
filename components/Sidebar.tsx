@@ -394,7 +394,7 @@ export default function Sidebar({
           console.error('Error moving note to folder:', error);
           alert(`Erro ao mover nota: ${error.message}`);
         } else {
-          onNotesUpdate();
+          onNotesUpdate?.();
         }
       } catch (error) {
         console.error('Error moving note:', error);
@@ -482,7 +482,7 @@ export default function Sidebar({
                   console.error('Error moving note:', error);
                   alert(`Erro ao mover nota: ${error.message}`);
                 } else {
-                  onNotesUpdate();
+                  onNotesUpdate?.();
                 }
               } catch (error) {
                 console.error('Error moving note:', error);
@@ -524,7 +524,7 @@ export default function Sidebar({
                     console.error('Error moving note:', error);
                     alert(`Erro ao mover nota: ${error.message}`);
                   } else {
-                    onNotesUpdate();
+                    onNotesUpdate?.();
                   }
                 } catch (error) {
                   console.error('Error moving note:', error);

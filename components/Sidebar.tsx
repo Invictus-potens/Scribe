@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { foldersHelpers, authHelpers, Note, Folder } from '../lib/supabase';
+import { foldersHelpers, notesHelpers, authHelpers, Note, Folder } from '../lib/supabase';
 import DraggableNotesList from './DraggableNotesList';
 import { useDroppable } from '@dnd-kit/core';
 
@@ -254,10 +254,52 @@ export default function Sidebar({
     }
   };
 
-  const handleNewNote = () => {
-    const createNewNote = () => {
-      // Esta função será implementada no componente pai
-      console.log('Create new note');
+  const handleNewNote = async () => {
+    const createNewNote = async () => {
+      try {
+        const { user } = await authHelpers.getCurrentUser();
+        if (!user) {
+          console.error('User not authenticated');
+          return;
+        }
+
+        // Criar uma nova nota vazia
+        const newNote = {
+          user_id: user.id,
+          title: 'Nova Nota',
+          content: '',
+          tags: [],
+          is_pinned: false,
+          folder: selectedFolder !== 'all' ? selectedFolder : undefined,
+        };
+
+        const { data, error } = await notesHelpers.createNote(newNote);
+        if (error) {
+          console.error('Error creating note:', error);
+          alert(`Erro ao criar nota: ${error.message}`);
+          return;
+        }
+
+        // Selecionar a nova nota
+        setSelectedNote(data);
+        
+        // Trigger notes update
+        if (onNotesUpdate) {
+          onNotesUpdate();
+        }
+
+        // Feedback visual de sucesso
+        setTimeout(() => {
+          const toast = document.createElement('div');
+          toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+          toast.textContent = 'Nova nota criada!';
+          document.body.appendChild(toast);
+          setTimeout(() => document.body.removeChild(toast), 3000);
+        }, 100);
+      } catch (error) {
+        console.error('Error creating note:', error);
+        alert('Erro inesperado ao criar nota');
+      }
     };
 
     if (onCheckUnsavedChanges) {

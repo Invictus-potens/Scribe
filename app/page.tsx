@@ -1,6 +1,7 @@
 /*
  * Scribe - Workspace de Produtividade
  * Data de conclusão: 25/07/2025
+ * Versão Otimizada com Auto-Update de Notas
  */
 
 'use client';
@@ -18,8 +19,9 @@ import {
   DragOverlay as DndKitDragOverlay,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { supabase, authHelpers, notesHelpers } from '../lib/supabase';
+import { supabase, authHelpers } from '../lib/supabase';
 import { useResponsive } from '../lib/useResponsive';
+import { useNotesManager } from '../lib/useNotesManager';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import NotesEditor from '../components/NotesEditor';
@@ -40,19 +42,31 @@ export default function Home() {
   const [selectedFolder, setSelectedFolder] = useState('all');
   const [selectedNote, setSelectedNote] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [notesUpdateTrigger, setNotesUpdateTrigger] = useState(0);
-  const [notes, setNotes] = useState<any[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
+  // Hook personalizado para gerenciar notas com auto-update
+  const {
+    notes,
+    loading: notesLoading,
+    error: notesError,
+    moveNoteToFolder,
+    reorderNotes,
+    refresh: refreshNotes,
+  } = useNotesManager({
+    autoRefreshInterval: 30000, // Auto-refresh a cada 30 segundos
+    onNotesLoaded: (loadedNotes) => {
+      console.log('Home: notas carregadas via hook:', loadedNotes.length);
+    }
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
-        delay: 100,
-      },
+        distance: 8, // Requer movimento de 8px para iniciar drag
+      }
     }),
     useSensor(KeyboardSensor)
   );
@@ -131,37 +145,44 @@ export default function Home() {
   };
 
   const handleNoteSaved = () => {
-    // Trigger notes update in sidebar
-    setNotesUpdateTrigger(prev => prev + 1);
+    // Refresh notes after saving
+    refreshNotes();
   };
 
   const checkUnsavedChanges = (action: () => void) => {
     if (hasUnsavedChanges) {
-      // Mostrar modal e executar ação após confirmação
-      setPendingAction(() => async () => {
-        // Executar a ação diretamente
-        action();
-      });
+      setPendingAction(() => action);
       setShowUnsavedModal(true);
     } else {
       action();
     }
   };
 
-  const handleNotesUpdate = useCallback(() => {
-    console.log('handleNotesUpdate chamado');
-    setNotesUpdateTrigger(prev => prev + 1);
-  }, []);
-
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDragId(event.active.id as string);
+    
+    // Add visual feedback to the dragged element
+    const draggedElement = document.querySelector(`[data-note-id="${event.active.id}"]`);
+    if (draggedElement) {
+      draggedElement.setAttribute('data-dragging', 'true');
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
 
-    console.log('handleDragEnd chamado:', { active: active.id, over: over?.id, overType: over?.data?.current?.type });
+    // Remove visual feedback
+    const draggedElement = document.querySelector(`[data-note-id="${active.id}"]`);
+    if (draggedElement) {
+      draggedElement.setAttribute('data-dragging', 'false');
+    }
+
+    console.log('handleDragEnd chamado:', { 
+      active: active.id, 
+      over: over?.id, 
+      overType: over?.data?.current?.type 
+    });
 
     if (!over) return;
 
@@ -170,51 +191,31 @@ export default function Home() {
       const folderName = over.data.current.folderName;
       const noteId = active.id as string;
       
-      try {
-        const { user } = await authHelpers.getCurrentUser();
-        if (!user) return;
-
-        const noteToUpdate = notes.find(note => note.id === noteId);
-        if (!noteToUpdate) return;
-
-        const updatedNote = {
-          ...noteToUpdate,
-          folder: folderName === 'all' ? undefined : folderName,
-        };
-
-        const { error } = await notesHelpers.updateNote(noteId, updatedNote);
-        if (error) {
-          console.error('Error moving note to folder:', error);
-          alert(`Erro ao mover nota: ${error.message}`);
-        } else {
-          console.log('Nota movida com sucesso para:', folderName);
-          
-          // Atualizar o estado local imediatamente
-          const updatedNotes = notes.map(note => 
-            note.id === noteId 
-              ? { ...note, folder: folderName === 'all' ? undefined : folderName }
-              : note
-          );
-          setNotes(updatedNotes);
-          
-          // Feedback visual de sucesso
-          const movedNote = document.querySelector(`[data-note-id="${noteId}"]`);
-          if (movedNote) {
-            movedNote.classList.add('moving');
-            setTimeout(() => {
-              movedNote.classList.remove('moving');
-            }, 400);
-          }
-          
-          // Recarregar as notas do banco para garantir sincronização
-          setNotesUpdateTrigger(prev => {
-            console.log('Atualizando trigger de notas:', prev + 1);
-            return prev + 1;
-          });
+      console.log(`Movendo nota ${noteId} para pasta: ${folderName}`);
+      
+      const success = await moveNoteToFolder(
+        noteId, 
+        folderName === 'all' ? undefined : folderName
+      );
+      
+      if (success) {
+        // Feedback visual de sucesso
+        const movedNote = document.querySelector(`[data-note-id="${noteId}"]`);
+        if (movedNote) {
+          movedNote.classList.add('moving');
+          setTimeout(() => {
+            movedNote.classList.remove('moving');
+          }, 400);
         }
-      } catch (error) {
-        console.error('Error moving note:', error);
-        alert('Erro inesperado ao mover a nota');
+
+        // Adicionar classe de sucesso temporariamente
+        const targetFolder = document.querySelector(`[id="${over.id}"]`);
+        if (targetFolder) {
+          targetFolder.classList.add('drop-success');
+          setTimeout(() => {
+            targetFolder.classList.remove('drop-success');
+          }, 600);
+        }
       }
     }
     // Se arrastou para reordenar dentro da mesma pasta
@@ -223,46 +224,42 @@ export default function Home() {
       const newIndex = notes.findIndex(note => note.id === over.id);
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        try {
-          const { user } = await authHelpers.getCurrentUser();
-          if (!user) return;
-
-                     // Calcular nova ordem usando arrayMove
-           const newOrder = arrayMove(notes, oldIndex, newIndex);
-
-           // Atualizar o estado local imediatamente para feedback visual
-           setNotes(newOrder);
-
-           // Atualizar posições de todas as notas afetadas no banco
-           const updatePromises = newOrder.map((note, index) => {
-             const newPosition = index + 1;
-             return notesHelpers.updateNote(note.id, { position: newPosition });
-           });
-
-           await Promise.all(updatePromises);
-           
-           console.log('Notas reordenadas com sucesso');
-           
-           // Feedback visual de sucesso
-           const movedNoteElement = document.querySelector(`[data-note-id="${active.id}"]`);
-           if (movedNoteElement) {
-             movedNoteElement.classList.add('moving');
-             setTimeout(() => {
-               movedNoteElement.classList.remove('moving');
-             }, 400);
-           }
-           
-           // Recarregar as notas do banco para garantir sincronização
-           setNotesUpdateTrigger(prev => {
-             console.log('Atualizando trigger de notas após reordenação:', prev + 1);
-             return prev + 1;
-           });
-        } catch (error) {
-          console.error('Error reordering notes:', error);
-          alert('Erro ao reordenar as notas');
+        console.log(`Reordenando nota de posição ${oldIndex} para ${newIndex}`);
+        
+        const success = await reorderNotes(oldIndex, newIndex);
+        
+        if (success) {
+          // Feedback visual de sucesso
+          const movedNoteElement = document.querySelector(`[data-note-id="${active.id}"]`);
+          if (movedNoteElement) {
+            movedNoteElement.classList.add('moving');
+            setTimeout(() => {
+              movedNoteElement.classList.remove('moving');
+            }, 400);
+          }
         }
       }
     }
+  };
+
+  const handleDragOver = (event: any) => {
+    const { over } = event;
+    
+    // Add visual feedback to drop zones
+    if (over?.data?.current?.type === 'folder') {
+      const folderElement = document.querySelector(`[id="${over.id}"]`);
+      if (folderElement && !folderElement.classList.contains('folder-drop-hover')) {
+        folderElement.classList.add('folder-drop-hover');
+      }
+    }
+  };
+
+  const handleDragLeave = (event: any) => {
+    // Remove visual feedback from drop zones
+    const allFolders = document.querySelectorAll('.folder-drop-hover');
+    allFolders.forEach(folder => {
+      folder.classList.remove('folder-drop-hover');
+    });
   };
 
   // Show loading screen while checking authentication
@@ -324,21 +321,24 @@ export default function Home() {
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragCancel={handleDragLeave}
       >
         <div className="flex flex-1 overflow-hidden">
           {activeView === 'notes' && (
-                         <Sidebar 
-               selectedFolder={selectedFolder}
-               setSelectedFolder={setSelectedFolder}
-               activeView={activeView}
-               selectedNote={selectedNote}
-               setSelectedNote={setSelectedNote}
-               searchTerm={searchTerm}
-               onNotesUpdate={handleNotesUpdate}
-               onNotesLoaded={setNotes}
-               hasUnsavedChanges={hasUnsavedChanges}
-               onCheckUnsavedChanges={checkUnsavedChanges}
-             />
+            <Sidebar 
+              selectedFolder={selectedFolder}
+              setSelectedFolder={setSelectedFolder}
+              activeView={activeView}
+              selectedNote={selectedNote}
+              setSelectedNote={setSelectedNote}
+              searchTerm={searchTerm}
+              onNotesUpdate={refreshNotes}
+              onNotesLoaded={() => {}} // Já gerenciado pelo hook
+              hasUnsavedChanges={hasUnsavedChanges}
+              onCheckUnsavedChanges={checkUnsavedChanges}
+              notes={notes} // Passar as notas do hook
+            />
           )}
           
           <main className={`${activeView === 'notes' ? 'flex-1' : 'w-full'} content-padding overflow-auto`}>
@@ -357,6 +357,7 @@ export default function Home() {
                     pendingAction();
                     setPendingAction(null);
                     setShowUnsavedModal(false);
+                    setHasUnsavedChanges(false);
                   }
                 }}
                 onUnsavedChangesCancel={() => {
@@ -371,24 +372,42 @@ export default function Home() {
           </main>
         </div>
 
-        {/* Drag Overlay */}
+        {/* Drag Overlay com melhor feedback visual */}
         <DndKitDragOverlay>
           {activeDragId ? (
-            <DragOverlay 
-              note={notes.find(note => note.id === activeDragId) || {
-                id: '',
-                title: '',
-                content: '',
-              }}
-            />
+            <div className="drag-overlay">
+              <DragOverlay 
+                note={notes.find(note => note.id === activeDragId) || {
+                  id: '',
+                  title: '',
+                  content: '',
+                }}
+              />
+            </div>
           ) : null}
         </DndKitDragOverlay>
       </DndContext>
 
+      {/* Notificação de erro das notas */}
+      {notesError && (
+        <div className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
+          <div className="flex items-center space-x-2">
+            <i className="ri-error-warning-line w-4 h-4"></i>
+            <span className="text-sm">{notesError}</span>
+            <button
+              onClick={() => window.location.reload()}
+              className="ml-2 text-xs underline hover:no-underline"
+            >
+              Recarregar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Modal Global de Mudanças Não Salvas */}
       {showUnsavedModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4 shadow-2xl">
             <div className="flex items-center mb-4">
               <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center mr-3">
                 <i className="ri-alert-line w-5 h-5 text-yellow-600 dark:text-yellow-400"></i>
@@ -440,6 +459,14 @@ export default function Home() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      
+      {/* Indicador de sincronização */}
+      {notesLoading && (
+        <div className="fixed top-20 right-4 bg-blue-500 text-white px-3 py-1 rounded-full shadow-lg z-40 flex items-center space-x-2">
+          <i className="ri-loader-4-line w-3 h-3 animate-spin"></i>
+          <span className="text-xs">Sincronizando...</span>
         </div>
       )}
       

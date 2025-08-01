@@ -1,10 +1,8 @@
-
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { notesHelpers, foldersHelpers, authHelpers, Note, Folder } from '../lib/supabase';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { foldersHelpers, authHelpers, Note, Folder } from '../lib/supabase';
 import DraggableNotesList from './DraggableNotesList';
-import { useSortable } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 
 interface SidebarProps {
@@ -18,6 +16,7 @@ interface SidebarProps {
   onNotesLoaded?: (notes: any[]) => void;
   hasUnsavedChanges?: boolean;
   onCheckUnsavedChanges?: (action: () => void) => void;
+  notes: Note[]; // Notas passadas do componente pai
 }
 
 // Componente para pasta arrastável
@@ -26,14 +25,12 @@ function DraggableFolder({
   notes, 
   isSelected, 
   onSelect, 
-  onDrop,
   onDelete
 }: { 
   folder: Folder; 
   notes: Note[];
   isSelected: boolean; 
   onSelect: () => void;
-  onDrop: (noteId: string, folderName: string) => void;
   onDelete: (folder: Folder) => void;
 }) {
   const {
@@ -47,13 +44,16 @@ function DraggableFolder({
     }
   });
 
-  const folderNotes = notes.filter(note => note.folder === folder.name);
+  const folderNotes = useMemo(() => 
+    notes.filter(note => note.folder === folder.name), 
+    [notes, folder.name]
+  );
 
   return (
     <div
       ref={setNodeRef}
       className={`px-4 mb-2 transition-all duration-200 ${
-        isOver ? 'scale-105' : ''
+        isOver ? 'scale-105 folder-drop-hover' : ''
       }`}
     >
       <div className="flex items-center justify-between group">
@@ -64,7 +64,7 @@ function DraggableFolder({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
           } ${
-            isOver ? 'ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/20' : ''
+            isOver ? 'ring-2 ring-green-400 bg-green-50 dark:bg-green-900/20' : ''
           }`}
         >
           <div className="flex items-center justify-between">
@@ -72,18 +72,20 @@ function DraggableFolder({
               <i className="ri-folder-line w-4 h-4"></i>
               <span className="font-medium">{folder.name}</span>
             </div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
+            <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full min-w-[24px] text-center">
               {folderNotes.length}
             </span>
           </div>
         </button>
-        <button
-          onClick={() => onDelete(folder)}
-          className="ml-2 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Deletar pasta"
-        >
-          <i className="ri-delete-bin-line w-4 h-4"></i>
-        </button>
+        {folder.name !== 'default' && (
+          <button
+            onClick={() => onDelete(folder)}
+            className="ml-2 p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-200"
+            title="Deletar pasta"
+          >
+            <i className="ri-delete-bin-line w-4 h-4"></i>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -93,13 +95,11 @@ function DraggableFolder({
 function DraggableAllNotes({ 
   notes, 
   isSelected, 
-  onSelect, 
-  onDrop 
+  onSelect
 }: { 
   notes: Note[];
   isSelected: boolean; 
   onSelect: () => void;
-  onDrop: (noteId: string, folderName: string) => void;
 }) {
   const {
     setNodeRef,
@@ -116,7 +116,7 @@ function DraggableAllNotes({
     <div
       ref={setNodeRef}
       className={`p-4 transition-all duration-200 ${
-        isOver ? 'scale-105' : ''
+        isOver ? 'scale-105 folder-drop-hover' : ''
       }`}
     >
       <button
@@ -126,15 +126,15 @@ function DraggableAllNotes({
             ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
             : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
         } ${
-          isOver ? 'ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/20' : ''
+          isOver ? 'ring-2 ring-green-400 bg-green-50 dark:bg-green-900/20' : ''
         }`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <i className="ri-folder-line w-4 h-4"></i>
+            <i className="ri-folder-open-line w-4 h-4"></i>
             <span className="font-medium">Todas as Notas</span>
           </div>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full min-w-[24px] text-center">
             {notes.length}
           </span>
         </div>
@@ -153,87 +153,71 @@ export default function Sidebar({
   onNotesUpdate,
   onNotesLoaded,
   hasUnsavedChanges = false,
-  onCheckUnsavedChanges
+  onCheckUnsavedChanges,
+  notes = []
 }: SidebarProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
-  // Function to reload notes - wrapped in useCallback to prevent unnecessary re-renders
-  const reloadNotes = useCallback(async () => {
-    console.log('Sidebar: reloadNotes chamado');
+  // Load folders from Supabase
+  const loadFolders = useCallback(async () => {
     try {
       const { user } = await authHelpers.getCurrentUser();
       if (!user) return;
 
-      const { data: notesData, error: notesError } = await notesHelpers.getNotes(user.id);
-      if (notesError) {
-        console.error('Error loading notes:', notesError);
+      const { data: foldersData, error: foldersError } = await foldersHelpers.getFolders(user.id);
+      if (foldersError) {
+        console.error('Error loading folders:', foldersError);
       } else {
-        console.log('Sidebar: notas recarregadas, total:', notesData?.length || 0);
-        setNotes(notesData || []);
-        if (onNotesLoaded) {
-          onNotesLoaded(notesData || []);
-        }
+        setFolders(foldersData || []);
       }
     } catch (error) {
-      console.error('Error reloading notes:', error);
+      console.error('Error loading folders:', error);
+    } finally {
+      setLoading(false);
     }
-  }, [onNotesLoaded]);
+  }, []);
 
-  // Load data from Supabase
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const { user } = await authHelpers.getCurrentUser();
-        if (!user) return;
-
-        // Load folders
-        const { data: foldersData, error: foldersError } = await foldersHelpers.getFolders(user.id);
-        if (foldersError) {
-          console.error('Error loading folders:', foldersError);
-        } else {
-          setFolders(foldersData || []);
-        }
-
-        // Load notes
-        await reloadNotes();
-      } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [reloadNotes]);
-
-  // Reload notes when parent component triggers update
-  useEffect(() => {
-    if (onNotesUpdate) {
-      console.log('Sidebar: onNotesUpdate mudou, recarregando notas');
-      reloadNotes();
-    }
-  }, [onNotesUpdate, reloadNotes]);
+    loadFolders();
+  }, [loadFolders]);
 
   // Função para remover tags HTML e extrair texto puro
-  const stripHtml = (html: string) => {
+  const stripHtml = useCallback((html: string) => {
     if (!html) return '';
     const tmp = document.createElement('div');
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || '';
-  };
+  }, []);
 
-  // Filtrar notas baseado no termo de busca
-  const filteredNotes = notes.filter(note => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    const title = (note.title || '').toLowerCase();
-    const content = stripHtml(note.content || '').toLowerCase();
-    return title.includes(searchLower) || content.includes(searchLower);
-  });
+  // Filtrar notas baseado no termo de busca e pasta selecionada
+  const filteredNotes = useMemo(() => {
+    console.log('Sidebar: Filtrando notas...');
+    console.log('Sidebar: selectedFolder:', selectedFolder);
+    console.log('Sidebar: total de notas:', notes.length);
+    
+    const filtered = notes.filter(note => {
+      // Filtrar por pasta selecionada
+      if (selectedFolder !== 'all') {
+        if (note.folder !== selectedFolder) {
+          console.log('Sidebar: nota filtrada por pasta:', note.title, 'pasta:', note.folder, 'selectedFolder:', selectedFolder);
+          return false;
+        }
+      }
+      
+      // Filtrar por termo de busca
+      if (!searchTerm) return true;
+      const searchLower = searchTerm.toLowerCase();
+      const title = (note.title || '').toLowerCase();
+      const content = stripHtml(note.content || '').toLowerCase();
+      return title.includes(searchLower) || content.includes(searchLower);
+    });
+    
+    console.log('Sidebar: notas filtradas:', filtered.length);
+    return filtered;
+  }, [notes, selectedFolder, searchTerm, stripHtml]);
 
   const handleNewFolder = async () => {
     if (!newFolderName.trim()) return;
@@ -246,17 +230,23 @@ export default function Sidebar({
         name: newFolderName.trim(),
         user_id: user.id,
       });
+      
       if (error) {
         console.error('Error creating folder:', error);
         alert(`Erro ao criar pasta: ${error.message}`);
       } else {
-        // Reload folders
-        const { data: foldersData, error: foldersError } = await foldersHelpers.getFolders(user.id);
-        if (!foldersError) {
-          setFolders(foldersData || []);
-        }
+        await loadFolders(); // Recarregar pastas
         setShowNewFolderModal(false);
         setNewFolderName('');
+        
+        // Feedback visual de sucesso
+        setTimeout(() => {
+          const toast = document.createElement('div');
+          toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+          toast.textContent = 'Pasta criada com sucesso!';
+          document.body.appendChild(toast);
+          setTimeout(() => document.body.removeChild(toast), 3000);
+        }, 100);
       }
     } catch (error) {
       console.error('Error creating folder:', error);
@@ -280,7 +270,12 @@ export default function Sidebar({
   const handleDeleteFolder = async (folder: Folder) => {
     console.log('handleDeleteFolder called with folder:', folder);
     
-    if (!confirm(`Tem certeza que deseja deletar a pasta "${folder.name}"? Todas as notas nesta pasta serão movidas para "Todas as Notas".`)) {
+    const folderNotes = notes.filter(note => note.folder === folder.name);
+    const confirmMessage = folderNotes.length > 0 
+      ? `Tem certeza que deseja deletar a pasta "${folder.name}"? As ${folderNotes.length} nota(s) desta pasta serão movidas para "Todas as Notas".`
+      : `Tem certeza que deseja deletar a pasta "${folder.name}"?`;
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -291,23 +286,8 @@ export default function Sidebar({
         return;
       }
 
-      console.log('Moving notes from folder:', folder.name);
-      
-      // Primeiro, mover todas as notas da pasta para "Todas as Notas"
-      const folderNotes = notes.filter(note => note.folder === folder.name);
-      console.log('Notes to move:', folderNotes.length);
-      
-      for (const note of folderNotes) {
-        const updatedNote = { ...note, folder: undefined };
-        const { error } = await notesHelpers.updateNote(note.id, updatedNote);
-        if (error) {
-          console.error('Error updating note:', error);
-        }
-      }
-
       console.log('Deleting folder:', folder.id);
       
-      // Depois, deletar a pasta
       const { error } = await foldersHelpers.deleteFolder(folder.id);
       if (error) {
         console.error('Error deleting folder:', error);
@@ -315,25 +295,32 @@ export default function Sidebar({
       } else {
         console.log('Folder deleted successfully');
         
-        // Reload folders and notes
-        const { data: foldersData, error: foldersError } = await foldersHelpers.getFolders(user.id);
-        if (!foldersError) {
-          setFolders(foldersData || []);
-        }
-        await reloadNotes();
-
+        await loadFolders(); // Recarregar pastas
+        
         // Se a pasta deletada era a selecionada, voltar para "Todas as Notas"
         if (selectedFolder === folder.name) {
           setSelectedFolder('all');
         }
+        
+        // Trigger notes update para mover as notas
+        if (onNotesUpdate) {
+          onNotesUpdate();
+        }
+        
+        // Feedback visual de sucesso
+        setTimeout(() => {
+          const toast = document.createElement('div');
+          toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+          toast.textContent = 'Pasta deletada com sucesso!';
+          document.body.appendChild(toast);
+          setTimeout(() => document.body.removeChild(toast), 3000);
+        }, 100);
       }
     } catch (error) {
       console.error('Error deleting folder:', error);
       alert('Erro inesperado ao deletar pasta');
     }
   };
-
-
 
   if (loading) {
     return (
@@ -352,75 +339,59 @@ export default function Sidebar({
 
   return (
     <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">
-              Scribe
-            </h2>
-            <button
-              onClick={handleNewNote}
-              className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              title="Nova nota"
-            >
-              <i className="ri-add-line w-5 h-5"></i>
-            </button>
-          </div>
-          
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200">
+            Scribe
+          </h2>
           <button
-            onClick={() => setShowNewFolderModal(true)}
-            className="w-full p-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center justify-center space-x-2"
+            onClick={handleNewNote}
+            className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+            title="Nova nota"
           >
-            <i className="ri-add-line w-4 h-4"></i>
-            <span>Nova Pasta</span>
+            <i className="ri-add-line w-5 h-5"></i>
           </button>
         </div>
+        
+        <button
+          onClick={() => setShowNewFolderModal(true)}
+          className="w-full p-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center justify-center space-x-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
+        >
+          <i className="ri-folder-add-line w-4 h-4"></i>
+          <span>Nova Pasta</span>
+        </button>
+      </div>
 
-        {/* Folders and Notes */}
-        <div className="flex-1 overflow-y-auto">
-          {/* All Notes */}
-          <DraggableAllNotes
-            notes={notes}
-            isSelected={selectedFolder === 'all'}
-            onSelect={() => {
-              const selectAllNotes = () => setSelectedFolder('all');
-              if (onCheckUnsavedChanges) {
-                onCheckUnsavedChanges(selectAllNotes);
-              } else {
-                selectAllNotes();
-              }
-            }}
-            onDrop={async (noteId, folderName) => {
-              try {
-                const { user } = await authHelpers.getCurrentUser();
-                if (!user) return;
+      {/* Folders and Notes */}
+      <div className="flex-1 overflow-y-auto">
+        {/* All Notes */}
+        <DraggableAllNotes
+          notes={notes}
+          isSelected={selectedFolder === 'all'}
+          onSelect={() => {
+            const selectAllNotes = () => setSelectedFolder('all');
+            if (onCheckUnsavedChanges) {
+              onCheckUnsavedChanges(selectAllNotes);
+            } else {
+              selectAllNotes();
+            }
+          }}
+        />
 
-                const noteToUpdate = notes.find(note => note.id === noteId);
-                if (!noteToUpdate) return;
-
-                const updatedNote = {
-                  ...noteToUpdate,
-                  folder: folderName === 'all' ? undefined : folderName,
-                };
-
-                const { error } = await notesHelpers.updateNote(noteId, updatedNote);
-                if (error) {
-                  console.error('Error moving note:', error);
-                  alert(`Erro ao mover nota: ${error.message}`);
-                } else {
-                  onNotesUpdate?.();
-                }
-              } catch (error) {
-                console.error('Error moving note:', error);
-                alert('Erro inesperado ao mover a nota');
-              }
-            }}
-          />
-
-          {/* Folders */}
+        {/* Folders */}
+        <div className="border-t border-gray-100 dark:border-gray-700 pt-2">
+          {folders.length > 0 && (
+            <div className="px-4 py-2">
+              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Pastas
+              </h4>
+            </div>
+          )}
+          
           {folders.map(folder => (
             <DraggableFolder
-              key={folder.name}
+              key={folder.id}
               folder={folder}
               notes={notes}
               isSelected={selectedFolder === folder.name}
@@ -432,90 +403,76 @@ export default function Sidebar({
                   selectFolder();
                 }
               }}
-              onDrop={async (noteId, folderName) => {
-                try {
-                  const { user } = await authHelpers.getCurrentUser();
-                  if (!user) return;
-
-                  const noteToUpdate = notes.find(note => note.id === noteId);
-                  if (!noteToUpdate) return;
-
-                  const updatedNote = {
-                    ...noteToUpdate,
-                    folder: folderName === 'all' ? undefined : folderName,
-                  };
-
-                  const { error } = await notesHelpers.updateNote(noteId, updatedNote);
-                  if (error) {
-                    console.error('Error moving note:', error);
-                    alert(`Erro ao mover nota: ${error.message}`);
-                  } else {
-                    onNotesUpdate?.();
-                  }
-                } catch (error) {
-                  console.error('Error moving note:', error);
-                  alert('Erro inesperado ao mover a nota');
-                }
-              }}
               onDelete={handleDeleteFolder}
             />
           ))}
+        </div>
 
-          {/* Notes List */}
-          <div className="p-4">
-            <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">
-              {selectedFolder === 'all' ? 'Todas as Notas' : `Notas em "${selectedFolder}"`}
-            </h3>
-            
+        {/* Notes List */}
+        <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
+          <div className="px-4 mb-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                {selectedFolder === 'all' ? 'Todas as Notas' : `${selectedFolder}`}
+              </h4>
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {filteredNotes.length}
+              </span>
+            </div>
+          </div>
+          
+          <div className="px-4">
             <DraggableNotesList
               notes={filteredNotes}
               selectedFolder={selectedFolder}
               selectedNote={selectedNote}
               setSelectedNote={setSelectedNote}
-              onNotesUpdate={reloadNotes}
+              onNotesUpdate={onNotesUpdate || (() => {})}
               onCheckUnsavedChanges={onCheckUnsavedChanges}
             />
           </div>
         </div>
+      </div>
 
-        {/* New Folder Modal */}
-        {showNewFolderModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-                Nova Pasta
-              </h3>
-              
-              <input
-                type="text"
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleNewFolder()}
-                placeholder="Nome da pasta"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 mb-4"
-              />
-              
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleNewFolder}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Criar
-                </button>
-                <button
-                  onClick={() => {
-                    setShowNewFolderModal(false);
-                    setNewFolderName('');
-                  }}
-                  className="flex-1 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-4 py-2 font-medium transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
+      {/* New Folder Modal */}
+      {showNewFolderModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
+              Nova Pasta
+            </h3>
+            
+            <input
+              type="text"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleNewFolder()}
+              placeholder="Nome da pasta"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 mb-4"
+              autoFocus
+            />
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={handleNewFolder}
+                disabled={!newFolderName.trim()}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Criar
+              </button>
+              <button
+                onClick={() => {
+                  setShowNewFolderModal(false);
+                  setNewFolderName('');
+                }}
+                className="flex-1 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-4 py-2 font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              >
+                Cancelar
+              </button>
             </div>
           </div>
-        )}
-
-      </div>
-    );
+        </div>
+      )}
+    </div>
+  );
 }

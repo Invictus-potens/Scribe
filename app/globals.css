@@ -338,3 +338,175 @@ html, body {
 .dark .drag-handle {
   background-color: #60a5fa;
 }
+
+/* Estilos para melhorar o feedback visual do drag and drop */
+
+/* Animação para nota sendo movida */
+@keyframes noteMove {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Classe aplicada quando uma nota é movida com sucesso */
+.moving {
+  animation: noteMove 0.4s ease-in-out;
+  transform-origin: center;
+}
+
+/* Estilos específicos para notas sendo arrastadas */
+.draggable-note[data-dragging="true"] {
+  transform: rotate(2deg) scale(1.08) !important;
+  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4) !important;
+  z-index: 1000 !important;
+  border: 2px solid #3b82f6 !important;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.1)) !important;
+  transition: none !important;
+}
+
+/* Melhorar o handle de drag */
+.drag-handle {
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.draggable-note:hover .drag-handle {
+  opacity: 1;
+  background-color: #3b82f6;
+  transform: scale(1.2);
+}
+
+/* Feedback visual para áreas de drop */
+.drop-zone-active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.05));
+  border: 2px dashed #3b82f6;
+  transform: scale(1.02);
+  transition: all 0.2s ease;
+}
+
+/* Animação suave para reordenação */
+.draggable-note {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Dark mode adjustments */
+.dark .draggable-note[data-dragging="true"] {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 197, 253, 0.1)) !important;
+  border-color: #60a5fa !important;
+  box-shadow: 0 15px 35px rgba(59, 130, 246, 0.6) !important;
+}
+
+.dark .drop-zone-active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(147, 197, 253, 0.1));
+  border-color: #60a5fa;
+}
+
+/* Indicador visual para pasta que pode receber drop */
+.folder-drop-hover {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(134, 239, 172, 0.05)) !important;
+  border: 2px solid #22c55e !important;
+  transform: scale(1.03);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.dark .folder-drop-hover {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(134, 239, 172, 0.1)) !important;
+  border-color: #4ade80 !important;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+/* Animação de sucesso quando nota é solta */
+@keyframes dropSuccess {
+  0% {
+    transform: scale(1);
+    background-color: transparent;
+  }
+  50% {
+    transform: scale(1.05);
+    background-color: rgba(34, 197, 94, 0.2);
+  }
+  100% {
+    transform: scale(1);
+    background-color: transparent;
+  }
+}
+
+.drop-success {
+  animation: dropSuccess 0.6s ease-in-out;
+}
+
+/* Melhorar a aparência do overlay de drag */
+.drag-overlay {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 2px solid #3b82f6;
+  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);
+  transform: rotate(3deg);
+}
+
+.dark .drag-overlay {
+  background: rgba(31, 41, 55, 0.95);
+  border-color: #60a5fa;
+  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.6);
+}
+
+/* Indicador de posição durante reordenação */
+.sort-indicator {
+  height: 2px;
+  background: #3b82f6;
+  border-radius: 1px;
+  margin: 4px 0;
+  opacity: 0;
+  transform: scaleX(0);
+  transition: all 0.2s ease;
+}
+
+.sort-indicator.active {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* Estados de hover melhorados */
+.draggable-note:not([data-dragging="true"]):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.dark .draggable-note:not([data-dragging="true"]):hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Transições suaves para todos os elementos dragáveis */
+.draggable-note,
+.folder-item,
+.all-notes-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
+}
+
+/* Otimização de performance para drag */
+.draggable-note[data-dragging="true"] * {
+  pointer-events: none;
+}
+
+/* Feedback tátil para mobile */
+@media (hover: none) and (pointer: coarse) {
+  .draggable-note:active {
+    transform: scale(0.98);
+  }
+  
+  .drag-handle {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}

@@ -193,11 +193,6 @@ export default function DraggableNotesList({
             isSelected={selectedNote?.id === note.id}
             onSelect={() => setSelectedNote(note)}
             onCheckUnsavedChanges={onCheckUnsavedChanges}
-            style={{
-              animationDelay: `${index * 50}ms`,
-              animation: 'fadeInUp 0.3s ease-out forwards',
-              opacity: 0,
-            }}
           />
         ))}
       </SortableContext>

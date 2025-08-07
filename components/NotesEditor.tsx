@@ -11,6 +11,9 @@ import Image from '@tiptap/extension-image';
 import CodeBlock from '@tiptap/extension-code-block';
 import Placeholder from '@tiptap/extension-placeholder';
 import DragHandle from '@tiptap/extension-drag-handle';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import CharacterCount from '@tiptap/extension-character-count';
 import { notesHelpers, Note } from '../lib/supabase';
 import { authHelpers } from '../lib/supabase';
 
@@ -86,6 +89,11 @@ export default function NotesEditor({
         placeholder: 'Comece a escrever sua nota...',
       }),
       DragHandle,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      CharacterCount,
     ],
     content: '',
     immediatelyRender: false,
@@ -572,6 +580,17 @@ export default function NotesEditor({
         >
           <i className="ri-list-ordered w-4 h-4 flex items-center justify-center"></i>
         </button>
+        <button
+          onClick={() => editor.chain().focus().toggleTaskList().run()}
+          className={`p-2 rounded transition-colors ${
+            editor.isActive('taskList')
+              ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
+          }`}
+          title="Lista de tarefas"
+        >
+          <i className="ri-checkbox-line w-4 h-4 flex items-center justify-center"></i>
+        </button>
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
@@ -655,6 +674,15 @@ export default function NotesEditor({
         >
           <i className="ri-image-line w-4 h-4 flex items-center justify-center"></i>
         </button>
+
+        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
+
+        {/* Character Count */}
+        <div className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400">
+          <i className="ri-file-text-line w-4 h-4"></i>
+          <span>{editor?.storage.characterCount.characters() || 0}</span>
+          <span className="text-gray-400 dark:text-gray-500">caracteres</span>
+        </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">

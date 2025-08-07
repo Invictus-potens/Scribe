@@ -14,16 +14,13 @@ import DragHandle from '@tiptap/extension-drag-handle';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import CharacterCount from '@tiptap/extension-character-count';
-import { TextStyle } from '@tiptap/extension-text-style';
+import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import FontFamily from '@tiptap/extension-font-family';
 import Subscript from '@tiptap/extension-subscript';
 import Superscript from '@tiptap/extension-superscript';
 import Highlight from '@tiptap/extension-highlight';
-import { Table } from '@tiptap/extension-table';
-import TableRow from '@tiptap/extension-table-row';
-import TableCell from '@tiptap/extension-table-cell';
-import TableHeader from '@tiptap/extension-table-header';
+
 import Dropcursor from '@tiptap/extension-dropcursor';
 import { notesHelpers, Note } from '../lib/supabase';
 import { authHelpers } from '../lib/supabase';
@@ -115,12 +112,6 @@ export default function NotesEditor({
       Highlight.configure({
         multicolor: true,
       }),
-      Table.configure({
-        resizable: true,
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
       Dropcursor.configure({
         color: '#3b82f6',
         width: 2,
@@ -736,77 +727,12 @@ export default function NotesEditor({
 
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
 
-        {/* Table */}
-        <button
-          onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400"
-          title="Inserir tabela"
-        >
-          <i className="ri-table-line w-4 h-4 flex items-center justify-center"></i>
-        </button>
-        <button
-          onClick={() => editor?.chain().focus().addColumnBefore().run()}
-          disabled={!editor?.can().addColumnBefore()}
-          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Adicionar coluna antes"
-        >
-          <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-        </button>
-        <button
-          onClick={() => editor?.chain().focus().addColumnAfter().run()}
-          disabled={!editor?.can().addColumnAfter()}
-          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Adicionar coluna depois"
-        >
-          <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-        </button>
-        <button
-          onClick={() => editor?.chain().focus().deleteColumn().run()}
-          disabled={!editor?.can().deleteColumn()}
-          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Deletar coluna"
-        >
-          <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
-        </button>
-        <button
-          onClick={() => editor?.chain().focus().addRowBefore().run()}
-          disabled={!editor?.can().addRowBefore()}
-          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Adicionar linha antes"
-        >
-          <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-        </button>
-        <button
-          onClick={() => editor?.chain().focus().addRowAfter().run()}
-          disabled={!editor?.can().addRowAfter()}
-          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Adicionar linha depois"
-        >
-          <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-        </button>
-        <button
-          onClick={() => editor?.chain().focus().deleteRow().run()}
-          disabled={!editor?.can().deleteRow()}
-          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Deletar linha"
-        >
-          <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
-        </button>
-        <button
-          onClick={() => editor?.chain().focus().deleteTable().run()}
-          disabled={!editor?.can().deleteTable()}
-          className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Deletar tabela"
-        >
-          <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
-        </button>
-
-        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
-
         {/* Character Count */}
         <div className="flex items-center space-x-1 text-sm text-gray-600 dark:text-gray-400">
           <i className="ri-file-text-line w-4 h-4"></i>
-          <span>{editor?.storage.characterCount.characters() || 0}</span>
+          <span className="font-mono">
+            {(editor?.storage.characterCount.characters() || 0).toLocaleString('pt-BR')}
+          </span>
           <span className="text-gray-400 dark:text-gray-500">caracteres</span>
         </div>
       </div>

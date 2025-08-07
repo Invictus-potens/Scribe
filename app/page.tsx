@@ -30,6 +30,7 @@ import Calendar from '../components/Calendar';
 import AIAssistant from '../components/AIAssistant';
 import AuthModal from '../components/AuthModal';
 import ResponsiveDebug from '../components/ResponsiveDebug';
+import ScaleControl from '../components/ScaleControl';
 import DragOverlay from '../components/DragOverlay';
 
 export default function Home() {
@@ -472,6 +473,9 @@ export default function Home() {
       
       {/* Debug component - set show={true} to enable */}
       <ResponsiveDebug show={false} />
+      
+      {/* Scale Control - set show={true} to enable */}
+      <ScaleControl show={false} />
     </div>
   );
 }

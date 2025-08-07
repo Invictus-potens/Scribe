@@ -31,6 +31,12 @@ Scribe é uma aplicação completa de produtividade que combina notas, calendár
 - Integração com IA para produtividade
 - Histórico de conversas
 
+### 🎨 **Interface Otimizada**
+- Escala padrão de 75% para proporções ideais
+- Controle de escala personalizável
+- Design responsivo adaptativo
+- Modo escuro/claro
+
 ### 🔐 **Autenticação**
 - Login/Registro com email e senha
 - Confirmação de email via Supabase
@@ -202,6 +208,34 @@ Se você encontrar algum problema ou tiver dúvidas:
 2. Confirme se o schema do banco foi executado corretamente
 3. Verifique os logs do console para erros
 4. Abra uma issue no repositório
+
+## 🎨 Configuração da Escala da Aplicação
+
+A aplicação Scribe foi configurada com uma escala padrão de 75% para proporcionar proporções ideais dos elementos. Esta configuração garante que todos os componentes tenham tamanhos adequados sem necessidade de zoom manual.
+
+### Controles de Escala
+
+Para ativar o controle de escala:
+1. Abra o arquivo `app/page.tsx`
+2. Localize a linha: `<ScaleControl show={false} />`
+3. Altere para: `<ScaleControl show={true} />`
+
+### Opções de Escala Disponíveis:
+- **75% (Padrão)**: Proporções ideais
+- **80%**: Escala ligeiramente maior
+- **85%**: Escala intermediária
+- **90%**: Escala maior
+- **95%**: Escala quase completa
+- **100%**: Escala original
+
+### Personalização Avançada
+
+Para modificar a escala padrão, edite o arquivo `app/globals.css`:
+```css
+:root {
+  --app-scale: 0.75; /* Altere este valor */
+}
+```
 
 ## 🎯 Próximos Passos
 

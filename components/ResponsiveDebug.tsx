@@ -1,6 +1,7 @@
 'use client';
 
 import { useResponsive, useOrientation, useTouchDevice, usePixelDensity } from '../lib/useResponsive';
+import { useState, useEffect } from 'react';
 
 interface ResponsiveDebugProps {
   show?: boolean;
@@ -11,6 +12,14 @@ export default function ResponsiveDebug({ show = false }: ResponsiveDebugProps) 
   const orientation = useOrientation();
   const isTouchDevice = useTouchDevice();
   const pixelDensity = usePixelDensity();
+  const [appScale, setAppScale] = useState('0.75');
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const computedStyle = getComputedStyle(root);
+    const scale = computedStyle.getPropertyValue('--app-scale').trim() || '0.75';
+    setAppScale(scale);
+  }, []);
 
   if (!show) return null;
 
@@ -22,6 +31,7 @@ export default function ResponsiveDebug({ show = false }: ResponsiveDebugProps) 
         <div><strong>Orientação:</strong> {orientation}</div>
         <div><strong>Touch:</strong> {isTouchDevice ? 'Sim' : 'Não'}</div>
         <div><strong>Densidade:</strong> {pixelDensity}x</div>
+        <div><strong>Escala App:</strong> {appScale}</div>
         <div><strong>Mobile:</strong> {screenSize.isMobile ? 'Sim' : 'Não'}</div>
         <div><strong>Tablet:</strong> {screenSize.isTablet ? 'Sim' : 'Não'}</div>
         <div><strong>Desktop:</strong> {screenSize.isDesktop ? 'Sim' : 'Não'}</div>

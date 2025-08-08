@@ -36,9 +36,10 @@ export const companyHelpers = {
       .from('companies')
       .select(`
         *,
-        company_members!inner(user_id)
+        company_members!inner(user_id, status)
       `)
       .eq('company_members.user_id', userId)
+      .eq('company_members.status', 'accepted')
       .order('created_at', { ascending: false });
 
     if (!primary.error) return { data: primary.data as Company[] | null, error: null };
@@ -115,9 +116,22 @@ export const companyHelpers = {
       .from('company_members')
       .select('*')
       .eq('company_id', companyId)
-      .order('created_at', { ascending: true });
+      .order('invited_at', { ascending: true });
 
     return { data, error };
+  },
+
+  async updateMemberRole(
+    companyId: string,
+    userId: string,
+    role: 'owner' | 'admin' | 'member'
+  ): Promise<{ error: any }> {
+    const { error } = await supabase
+      .from('company_members')
+      .update({ role })
+      .eq('company_id', companyId)
+      .eq('user_id', userId);
+    return { error };
   },
 
   async inviteUserToCompany(companyId: string, userEmail: string, role: 'admin' | 'member' = 'member'): Promise<{ success: boolean; message: string }> {
@@ -172,24 +186,19 @@ export const companyHelpers = {
   },
 
   async acceptInvitation(companyId: string, userId: string): Promise<{ error: any }> {
-    const { error } = await supabase
-      .from('company_members')
-      .update({ 
-        status: 'accepted',
-        joined_at: new Date().toISOString()
-      })
-      .eq('company_id', companyId)
-      .eq('user_id', userId);
+    // Prefer RPC to satisfy RLS safely: only invited user can accept own invite
+    const { error } = await supabase.rpc('accept_company_invitation', {
+      p_company_id: companyId
+    });
 
     return { error };
   },
 
   async declineInvitation(companyId: string, userId: string): Promise<{ error: any }> {
-    const { error } = await supabase
-      .from('company_members')
-      .update({ status: 'declined' })
-      .eq('company_id', companyId)
-      .eq('user_id', userId);
+    // Prefer RPC to satisfy RLS safely: only invited user can decline own invite
+    const { error } = await supabase.rpc('decline_company_invitation', {
+      p_company_id: companyId
+    });
 
     return { error };
   },

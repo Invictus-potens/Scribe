@@ -12,6 +12,7 @@ export default function CompanyManager() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [companyMembers, setCompanyMembers] = useState<CompanyMember[]>([]);
+  const [memberOps, setMemberOps] = useState<Record<string, 'role' | 'remove' | null>>({});
   
   const [newCompany, setNewCompany] = useState({
     name: '',
@@ -99,6 +100,42 @@ export default function CompanyManager() {
       setCompanyMembers(members || []);
     } catch (error) {
       console.error('Error loading members:', error);
+    }
+  };
+
+  const currentUserRole = selectedCompany
+    ? companyMembers.find(m => m.user_id === currentUser?.id)?.role
+    : undefined;
+
+  const canManageMembers = currentUserRole === 'owner' || currentUserRole === 'admin';
+
+  const handleChangeMemberRole = async (member: CompanyMember, role: 'admin' | 'member') => {
+    if (!selectedCompany || !canManageMembers) return;
+    if (member.role === 'owner') return;
+    setMemberOps(prev => ({ ...prev, [member.id]: 'role' }));
+    try {
+      const { error } = await companyHelpers.updateMemberRole(selectedCompany.id, member.user_id, role);
+      if (error) throw error;
+      setCompanyMembers(prev => prev.map(m => m.id === member.id ? { ...m, role } : m));
+    } catch (e) {
+      console.error('Erro ao alterar função do membro', e);
+    } finally {
+      setMemberOps(prev => ({ ...prev, [member.id]: null }));
+    }
+  };
+
+  const handleRemoveMember = async (member: CompanyMember) => {
+    if (!selectedCompany || !canManageMembers) return;
+    if (member.role === 'owner') return;
+    setMemberOps(prev => ({ ...prev, [member.id]: 'remove' }));
+    try {
+      const { error } = await companyHelpers.removeMember(selectedCompany.id, member.user_id);
+      if (error) throw error;
+      setCompanyMembers(prev => prev.filter(m => m.id !== member.id));
+    } catch (e) {
+      console.error('Erro ao remover membro', e);
+    } finally {
+      setMemberOps(prev => ({ ...prev, [member.id]: null }));
     }
   };
 
@@ -296,16 +333,39 @@ export default function CompanyManager() {
             <div className="space-y-3">
               {companyMembers.map(member => (
                 <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div>
-                    <div className="font-medium text-gray-800 dark:text-gray-200">
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-800 dark:text-gray-200 truncate">
                       {member.user_id === currentUser?.id ? 'Você' : `Usuário ${member.user_id.slice(0, 8)}`}
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {member.role} • {member.status}
+                    <div className="text-sm text-gray-500 truncate">
+                      {member.status === 'pending' ? 'Pendente' : 'Ativo'}
                     </div>
                   </div>
-                  <div className="text-xs text-gray-400">
-                    {member.status === 'pending' ? 'Pendente' : 'Ativo'}
+                  <div className="flex items-center space-x-2">
+                    {canManageMembers && member.role !== 'owner' ? (
+                      <select
+                        value={member.role}
+                        onChange={(e) => handleChangeMemberRole(member, e.target.value as 'admin' | 'member')}
+                        disabled={memberOps[member.id] === 'role'}
+                        className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                        title="Alterar função"
+                      >
+                        <option value="member">Membro</option>
+                        <option value="admin">Administrador</option>
+                      </select>
+                    ) : (
+                      <span className="text-xs text-gray-500">{member.role}</span>
+                    )}
+                    {canManageMembers && member.role !== 'owner' && (
+                      <button
+                        onClick={() => handleRemoveMember(member)}
+                        disabled={memberOps[member.id] === 'remove'}
+                        className="p-2 text-red-600 hover:text-red-700 disabled:opacity-50"
+                        title="Remover membro"
+                      >
+                        <i className="ri-user-unfollow-line w-4 h-4"></i>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

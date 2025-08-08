@@ -31,7 +31,8 @@ export interface SharedKanbanBoard {
 export const companyHelpers = {
   // Companies
   async getCompanies(userId: string): Promise<{ data: Company[] | null; error: any }> {
-    const { data, error } = await supabase
+    // Primary: companies where user is a member
+    const primary = await supabase
       .from('companies')
       .select(`
         *,
@@ -39,6 +40,27 @@ export const companyHelpers = {
       `)
       .eq('company_members.user_id', userId)
       .order('created_at', { ascending: false });
+
+    if (!primary.error) return { data: primary.data as Company[] | null, error: null };
+
+    // Fallback: companies owned by the user (avoids recursive RLS on joins)
+    const { data, error } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('owner_id', userId)
+      .order('created_at', { ascending: false });
+
+    return { data, error };
+  },
+
+  // Get pending invitations for a specific user (no joins to avoid RLS recursion)
+  async getUserInvitations(userId: string): Promise<{ data: CompanyMember[] | null; error: any }> {
+    const { data, error } = await supabase
+      .from('company_members')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'pending')
+      .order('invited_at', { ascending: false });
 
     return { data, error };
   },
@@ -88,12 +110,10 @@ export const companyHelpers = {
 
   // Company Members
   async getCompanyMembers(companyId: string): Promise<{ data: CompanyMember[] | null; error: any }> {
+    // Avoid recursive joins that can trigger RLS recursion.
     const { data, error } = await supabase
       .from('company_members')
-      .select(`
-        *,
-        users!inner(id, email, full_name)
-      `)
+      .select('*')
       .eq('company_id', companyId)
       .order('created_at', { ascending: true });
 
@@ -101,30 +121,39 @@ export const companyHelpers = {
   },
 
   async inviteUserToCompany(companyId: string, userEmail: string, role: 'admin' | 'member' = 'member'): Promise<{ success: boolean; message: string }> {
-    // First, find the user by email
-    const { data: user, error: userError } = await supabase
+    // First, try to find the user by email in public.users (profile table)
+    let { data: user, error: userError } = await supabase
       .from('users')
       .select('id')
       .eq('email', userEmail)
-      .single();
+      .maybeSingle();
 
-    if (userError || !user) {
+    // If not found (common when the profile wasn't created yet), try RPC that reads by email
+    if ((!user || userError) && !user) {
+      const { data: rpcUser, error: rpcError } = await supabase
+        .rpc('get_user_by_email', { user_email: userEmail });
+      if (!rpcError && rpcUser && Array.isArray(rpcUser) && rpcUser.length > 0) {
+        user = { id: rpcUser[0].id } as any;
+      }
+    }
+
+    if (!user) {
       return { success: false, message: 'User not found with this email' };
     }
 
-    // Check if user is already a member
+    // Check if user is already a member (no joins)
     const { data: existingMember } = await supabase
       .from('company_members')
       .select('id')
       .eq('company_id', companyId)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (existingMember) {
       return { success: false, message: 'User is already a member of this company' };
     }
 
-    // Add user to company
+    // Add user to company (owner is enforced by RLS policy)
     const { error } = await supabase
       .from('company_members')
       .insert([{
@@ -224,22 +253,6 @@ export const companyHelpers = {
 
     if (ownError) return { data: null, error: ownError };
 
-    // Get shared boards from companies user is member of
-    const { data: sharedBoards, error: sharedError } = await supabase
-      .from('shared_kanban_boards')
-      .select(`
-        *,
-        kanban_boards!inner(*),
-        companies!inner(name),
-        company_members!inner(user_id, status)
-      `)
-      .eq('company_members.user_id', userId)
-      .eq('company_members.status', 'accepted')
-      .order('shared_at', { ascending: false });
-
-    if (sharedError) return { data: null, error: sharedError };
-
-    // Combine and format the data
     const ownBoardsFormatted = ownBoards?.map(board => ({
       ...board,
       is_shared: false,
@@ -247,15 +260,39 @@ export const companyHelpers = {
       permissions: ['view', 'edit', 'create', 'delete']
     })) || [];
 
-    const sharedBoardsFormatted = sharedBoards?.map(share => ({
-      ...share.kanban_boards,
-      is_shared: true,
-      company_name: share.companies.name,
-      permissions: ['view', 'edit', 'create', 'delete'] // Default permissions
-    })) || [];
+    // Try to get shared boards. If shared tables are missing or error occurs,
+    // fall back to returning only the user's own boards so the app keeps working.
+    try {
+      const { data: sharedBoards, error: sharedError } = await supabase
+        .from('shared_kanban_boards')
+        .select(`
+          *,
+          kanban_boards!inner(*),
+          companies!inner(name),
+          company_members!inner(user_id, status)
+        `)
+        .eq('company_members.user_id', userId)
+        .eq('company_members.status', 'accepted')
+        .order('shared_at', { ascending: false });
 
-    const allBoards = [...ownBoardsFormatted, ...sharedBoardsFormatted];
+      if (sharedError) {
+        // Graceful degrade: no shared boards available
+        return { data: ownBoardsFormatted, error: null };
+      }
 
-    return { data: allBoards, error: null };
+      const sharedBoardsFormatted = sharedBoards?.map(share => ({
+        ...share.kanban_boards,
+        is_shared: true,
+        company_name: share.companies.name,
+        permissions: ['view', 'edit', 'create', 'delete'] // Default permissions
+      })) || [];
+
+      const allBoards = [...ownBoardsFormatted, ...sharedBoardsFormatted];
+      return { data: allBoards, error: null };
+    } catch (_) {
+      // If the shared tables don't exist or any other runtime error occurs,
+      // return only own boards.
+      return { data: ownBoardsFormatted, error: null };
+    }
   }
 }; 

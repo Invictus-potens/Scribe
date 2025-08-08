@@ -31,6 +31,7 @@ import AIAssistant from '../components/AIAssistant';
 import AuthModal from '../components/AuthModal';
 import ResponsiveDebug from '../components/ResponsiveDebug';
 import DragOverlay from '../components/DragOverlay';
+import CompanyManager from '../components/CompanyManager';
 
 export default function Home() {
   const [activeView, setActiveView] = useState('notes');
@@ -368,6 +369,7 @@ export default function Home() {
             {activeView === 'kanban' && <KanbanBoard />}
             {activeView === 'calendar' && <Calendar />}
             {activeView === 'ai' && <AIAssistant />}
+            {activeView === 'companies' && <CompanyManager />}
           </main>
         </div>
 

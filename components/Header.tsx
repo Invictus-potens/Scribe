@@ -1,7 +1,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { authHelpers } from '../lib/supabase';
+import { companyHelpers } from '../lib/companyHelpers';
 
 interface HeaderProps {
   activeView: string;
@@ -23,12 +25,25 @@ export default function Header({
   setSearchTerm 
 }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [invitations, setInvitations] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadInvites = async () => {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) return;
+      const { data } = await companyHelpers.getUserInvitations(user.id);
+      setInvitations(data || []);
+    };
+    loadInvites();
+  }, []);
 
   const views = [
     { id: 'notes', label: 'Notes', icon: 'ri-file-text-line' },
     { id: 'kanban', label: 'Kanban', icon: 'ri-kanban-view' },
     { id: 'calendar', label: 'Calendar', icon: 'ri-calendar-line' },
-    { id: 'ai', label: 'AI Assistant', icon: 'ri-robot-line' }
+    { id: 'ai', label: 'AI Assistant', icon: 'ri-robot-line' },
+    { id: 'companies', label: 'Empresas', icon: 'ri-building-line' }
   ];
 
   return (
@@ -82,6 +97,54 @@ export default function Header({
               />
             </div>
           )}
+
+          {/* Notifications */}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications((v) => !v)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors relative"
+              title="Notificações"
+            >
+              <i className="ri-notification-3-line w-5 h-5 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
+              {invitations.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] leading-none px-1.5 py-0.5 rounded-full">
+                  {invitations.length}
+                </span>
+              )}
+            </button>
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+                <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">Notificações</span>
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    <i className="ri-close-line w-4 h-4"></i>
+                  </button>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {invitations.length === 0 && (
+                    <div className="p-4 text-sm text-gray-500 dark:text-gray-400">Sem novas notificações</div>
+                  )}
+                  {invitations.map((inv) => (
+                    <div key={inv.id} className="px-4 py-3 border-b last:border-b-0 border-gray-200 dark:border-gray-700">
+                      <div className="text-sm text-gray-800 dark:text-gray-200">Convite para empresa</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Status: {inv.status}</div>
+                      <div className="flex items-center space-x-2">
+                        <button className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded" title="Aceitar">
+                          Aceitar
+                        </button>
+                        <button className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded" title="Recusar">
+                          Recusar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <button
             onClick={toggleTheme}

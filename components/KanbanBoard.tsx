@@ -10,7 +10,7 @@ export default function KanbanBoard() {
   const [boards, setBoards] = useState<any[]>([]);
   const [activeBoard, setActiveBoard] = useState<KanbanBoardWithData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [showNewCardModal, setShowNewCardModal] = useState(false);
   const [newCardColumn, setNewCardColumn] = useState('');
   const [draggedCard, setDraggedCard] = useState<KanbanCard | null>(null);
@@ -51,6 +51,87 @@ export default function KanbanBoard() {
 
     loadData();
   }, []);
+
+  const handleCreateBoard = async () => {
+    try {
+      if (!currentUser) return;
+      const title = typeof window !== 'undefined' ? window.prompt('Nome do board', 'Meu Board') : 'Meu Board';
+      if (!title) return;
+
+      const { data: createdBoard, error } = await kanbanHelpers.createBoard(currentUser.id, title);
+      if (error || !createdBoard) return;
+
+      // Criar colunas padrão
+      await kanbanHelpers.createColumn(createdBoard.id, 'To Do', 0);
+      await kanbanHelpers.createColumn(createdBoard.id, 'In Progress', 1);
+      await kanbanHelpers.createColumn(createdBoard.id, 'Done', 2);
+
+      // Carregar board completo e atualizar estado
+      const { data: boardData } = await kanbanHelpers.getBoardWithData(createdBoard.id);
+      setBoards(prev => [{ ...createdBoard, is_shared: false, company_name: null }, ...prev]);
+      setActiveBoard(boardData);
+    } catch (error) {
+      console.error('Error creating board:', error);
+    }
+  };
+  
+  const createDefaultBoardSilently = async () => {
+    if (!currentUser) return null;
+    const { data: createdBoard } = await kanbanHelpers.createBoard(currentUser.id, 'Meu Board');
+    if (!createdBoard) return null;
+    await kanbanHelpers.createColumn(createdBoard.id, 'To Do', 0);
+    await kanbanHelpers.createColumn(createdBoard.id, 'In Progress', 1);
+    await kanbanHelpers.createColumn(createdBoard.id, 'Done', 2);
+    const { data: boardData } = await kanbanHelpers.getBoardWithData(createdBoard.id);
+    setBoards(prev => [{ ...createdBoard, is_shared: false, company_name: null }, ...prev]);
+    setActiveBoard(boardData);
+    return createdBoard;
+  };
+
+  const handleRenameBoard = async () => {
+    try {
+      if (!activeBoard) return;
+      const meta = boards.find(b => b.id === activeBoard.id);
+      if (meta?.is_shared) {
+        alert('Não é possível renomear um board compartilhado.');
+        return;
+      }
+      const newTitle = typeof window !== 'undefined' ? window.prompt('Novo nome do board', activeBoard.title) : activeBoard.title;
+      if (!newTitle || newTitle.trim() === '' || newTitle === activeBoard.title) return;
+      const { data, error } = await kanbanHelpers.updateBoard(activeBoard.id, newTitle.trim());
+      if (error || !data) return;
+      setBoards(prev => prev.map(b => (b.id === data.id ? { ...b, title: data.title } : b)));
+      setActiveBoard({ ...activeBoard, title: data.title });
+    } catch (error) {
+      console.error('Error renaming board:', error);
+    }
+  };
+
+  const handleDeleteBoard = async () => {
+    try {
+      if (!activeBoard) return;
+      const meta = boards.find(b => b.id === activeBoard.id);
+      if (meta?.is_shared) {
+        alert('Não é possível excluir um board compartilhado.');
+        return;
+      }
+      const confirmed = typeof window !== 'undefined' ? window.confirm('Excluir este board? Esta ação não pode ser desfeita.') : false;
+      if (!confirmed) return;
+      const { error } = await kanbanHelpers.deleteBoard(activeBoard.id);
+      if (error) return;
+      const remaining = boards.filter(b => b.id !== activeBoard.id);
+      setBoards(remaining);
+      if (remaining.length > 0) {
+        const nextId = remaining[0].id;
+        const { data: boardData } = await kanbanHelpers.getBoardWithData(nextId);
+        setActiveBoard(boardData);
+      } else {
+        await createDefaultBoardSilently();
+      }
+    } catch (error) {
+      console.error('Error deleting board:', error);
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent, card: KanbanCard) => {
     setDraggedCard(card);
@@ -187,7 +268,13 @@ export default function KanbanBoard() {
         <div className="text-center">
           <i className="ri-kanban-view w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4"></i>
           <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Nenhum Board Disponível</h3>
-          <p className="text-gray-500 dark:text-gray-400">Crie um novo board para começar</p>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">Crie um novo board para começar</p>
+          <button
+            onClick={handleCreateBoard}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            Criar Board
+          </button>
         </div>
       </div>
     );
@@ -212,6 +299,27 @@ export default function KanbanBoard() {
           </select>
         </div>
         <div className="flex items-center space-x-2">
+          <button
+            onClick={handleCreateBoard}
+            className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
+            title="Novo board"
+          >
+            <i className="ri-layout-grid-line w-4 h-4 flex items-center justify-center"></i>
+          </button>
+          <button
+            onClick={handleRenameBoard}
+            className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
+            title="Renomear board"
+          >
+            <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
+          </button>
+          <button
+            onClick={handleDeleteBoard}
+            className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
+            title="Excluir board"
+          >
+            <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
+          </button>
           <button
             onClick={() => setShowShareModal(true)}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"

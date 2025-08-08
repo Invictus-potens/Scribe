@@ -122,11 +122,12 @@ export const companyHelpers = {
 
   async inviteUserToCompany(companyId: string, userEmail: string, role: 'admin' | 'member' = 'member'): Promise<{ success: boolean; message: string }> {
     // First, try to find the user by email in public.users (profile table)
-    let { data: user, error: userError } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('users')
       .select('id')
       .eq('email', userEmail)
       .maybeSingle();
+    let user = userData as { id: string } | null;
 
     // If not found (common when the profile wasn't created yet), try RPC that reads by email
     if ((!user || userError) && !user) {
@@ -289,7 +290,7 @@ export const companyHelpers = {
 
       const allBoards = [...ownBoardsFormatted, ...sharedBoardsFormatted];
       return { data: allBoards, error: null };
-    } catch (_) {
+    } catch {
       // If the shared tables don't exist or any other runtime error occurs,
       // return only own boards.
       return { data: ownBoardsFormatted, error: null };

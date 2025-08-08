@@ -22,7 +22,7 @@ import Superscript from '@tiptap/extension-superscript';
 import Highlight from '@tiptap/extension-highlight';
 
 import Dropcursor from '@tiptap/extension-dropcursor';
-import { notesHelpers, Note, authHelpers, templatesHelpers } from '../lib/supabase';
+import { notesHelpers, authHelpers, templatesHelpers } from '../lib/supabase';
 
 // Verificar se estamos no lado do cliente
 const isClient = typeof window !== 'undefined';
@@ -258,42 +258,14 @@ export default function NotesEditor({
       console.error('Error saving note:', error);
       alert('An unexpected error occurred while saving the note');
     }
-  }, [selectedNote, authHelpers, editor, isPinned, isFavorite, isArchived, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved, title, tags]);
+  }, [selectedNote, editor, isPinned, isFavorite, isArchived, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved, title, tags]);
 
   // Atualizar o ref da função de salvar sempre que handleSave mudar
   useEffect(() => {
     saveFunctionRef.current = handleSave;
   }, [handleSave]);
 
-  const handleSaveContent = async (content: string) => {
-    if (!selectedNote || !selectedNote.id) return;
-
-    try {
-      const { user } = await authHelpers.getCurrentUser();
-      if (!user) {
-        console.error('User not authenticated');
-        return;
-      }
-
-      const updatedNote = {
-        ...selectedNote,
-        content,
-      };
-
-      const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
-      if (error) {
-        console.error('Error updating note content:', error);
-        return;
-      }
-      setSelectedNote(data);
-      setHasUnsavedChanges(false);
-      if (onNoteSaved) {
-        onNoteSaved();
-      }
-    } catch (error) {
-      console.error('Error saving note content:', error);
-    }
-  };
+  // Removed unused handleSaveContent to satisfy linter
 
   const handleAddTag = () => {
     if (newTag.trim() && !tags.includes(newTag.trim())) {

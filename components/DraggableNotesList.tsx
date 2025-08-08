@@ -146,10 +146,10 @@ function SortableNoteItem({
 
 export default function DraggableNotesList({
   notes,
-  selectedFolder,
+  // selectedFolder,
   selectedNote,
   setSelectedNote,
-  onNotesUpdate,
+  // onNotesUpdate,
   onCheckUnsavedChanges
 }: DraggableNotesListProps) {
 

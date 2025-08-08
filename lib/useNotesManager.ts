@@ -202,6 +202,7 @@ export function useNotesManager(options: UseNotesManagerOptions = {}) {
   // Initial load
   useEffect(() => {
     loadNotes(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cleanup

@@ -20,7 +20,7 @@ import {
 } from '@dnd-kit/core';
 // import { arrayMove } from '@dnd-kit/sortable';
 import { supabase, authHelpers } from '../lib/supabase';
-import { useResponsive } from '../lib/useResponsive';
+// import { useResponsive } from '../lib/useResponsive';
 import { useNotesManager } from '../lib/useNotesManager';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
@@ -254,7 +254,7 @@ export default function Home() {
     }
   };
 
-  const handleDragLeave = (event: any) => {
+  const handleDragLeave = () => {
     // Remove visual feedback from drop zones
     const allFolders = document.querySelectorAll('.folder-drop-hover');
     allFolders.forEach(folder => {

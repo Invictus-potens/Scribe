@@ -146,13 +146,13 @@ function DraggableAllNotes({
 export default function Sidebar({ 
   selectedFolder, 
   setSelectedFolder, 
-  activeView, 
+  // activeView, 
   selectedNote, 
   setSelectedNote,
   searchTerm,
   onNotesUpdate,
-  onNotesLoaded,
-  hasUnsavedChanges = false,
+  // onNotesLoaded,
+  // hasUnsavedChanges = false,
   onCheckUnsavedChanges,
   notes = []
 }: SidebarProps) {

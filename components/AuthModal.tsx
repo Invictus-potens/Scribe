@@ -160,7 +160,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
       if (error) {
         setErrors({ general: error.message });
       }
-    } catch (error) {
+    } catch {
       setErrors({ general: 'Ocorreu um erro inesperado' });
     } finally {
       setIsLoading(false);
@@ -202,7 +202,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
         setErrors({ general: 'Email de confirmação reenviado com sucesso!' });
         setTimeout(() => setErrors({}), 3000);
       }
-    } catch (error) {
+    } catch {
       setErrors({ general: 'Erro ao reenviar email de confirmação' });
     } finally {
       setIsLoading(false);

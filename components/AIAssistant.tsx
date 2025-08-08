@@ -60,7 +60,7 @@ export default function AIAssistant() {
     }, 1500);
   };
 
-  const handleInsertToNotes = (_messageContent: string) => {
+  const handleInsertToNotes = (messageContent: string) => {
     // This would integrate with the notes system
     alert('Content would be inserted into your notes!');
     setSelectedMessage(null);

@@ -53,7 +53,7 @@ export default function ResetPassword() {
           router.push('/');
         }, 3000);
       }
-    } catch (err) {
+    } catch {
       setError('Ocorreu um erro inesperado');
     } finally {
       setIsLoading(false);

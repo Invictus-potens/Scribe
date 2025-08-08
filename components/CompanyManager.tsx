@@ -13,6 +13,8 @@ export default function CompanyManager() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [companyMembers, setCompanyMembers] = useState<CompanyMember[]>([]);
   const [memberOps, setMemberOps] = useState<Record<string, 'role' | 'remove' | null>>({});
+  const [showEditCompanyModal, setShowEditCompanyModal] = useState(false);
+  const [editCompany, setEditCompany] = useState<{ name: string; description: string }>({ name: '', description: '' });
   
   const [newCompany, setNewCompany] = useState({
     name: '',
@@ -95,6 +97,8 @@ export default function CompanyManager() {
 
   const handleViewMembers = async (company: Company) => {
     setSelectedCompany(company);
+    // Prepare edit form with current company values
+    setEditCompany({ name: company.name, description: company.description || '' });
     try {
       const { data: members } = await companyHelpers.getCompanyMembers(company.id);
       setCompanyMembers(members || []);
@@ -136,6 +140,25 @@ export default function CompanyManager() {
       console.error('Erro ao remover membro', e);
     } finally {
       setMemberOps(prev => ({ ...prev, [member.id]: null }));
+    }
+  };
+
+  const handleUpdateCompany = async () => {
+    if (!selectedCompany) return;
+    const newName = editCompany.name.trim();
+    const newDesc = editCompany.description.trim();
+    if (!newName) return;
+
+    try {
+      const { data, error } = await companyHelpers.updateCompany(selectedCompany.id, newName, newDesc);
+      if (error) return;
+      if (data) {
+        setCompanies(prev => prev.map(c => (c.id === data.id ? { ...c, name: data.name, description: data.description } : c)));
+        setSelectedCompany({ ...selectedCompany, name: data.name, description: data.description } as Company);
+        setShowEditCompanyModal(false);
+      }
+    } catch (e) {
+      console.error('Erro ao atualizar empresa', e);
     }
   };
 
@@ -314,20 +337,31 @@ export default function CompanyManager() {
       )}
 
       {/* Company Members Modal */}
-      {selectedCompany && companyMembers.length > 0 && (
+      {selectedCompany && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
                 Membros de {selectedCompany.name}
               </h3>
-              <button
-                onClick={() => setSelectedCompany(null)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                title="Fechar"
-              >
-                <i className="ri-close-line w-5 h-5"></i>
-              </button>
+              <div className="flex items-center space-x-2">
+                {currentUserRole === 'owner' && (
+                  <button
+                    onClick={() => setShowEditCompanyModal(true)}
+                    className="p-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100"
+                    title="Editar empresa"
+                  >
+                    <i className="ri-edit-2-line w-5 h-5"></i>
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedCompany(null)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  title="Fechar"
+                >
+                  <i className="ri-close-line w-5 h-5"></i>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -369,6 +403,57 @@ export default function CompanyManager() {
                   </div>
                 </div>
               ))}
+              {companyMembers.length === 0 && (
+                <div className="text-sm text-gray-500 dark:text-gray-400 p-3 bg-gray-50 dark:bg-gray-700 rounded">Nenhum membro ainda.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Company Modal (owner only) */}
+      {showEditCompanyModal && selectedCompany && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Editar Empresa</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da Empresa</label>
+                <input
+                  type="text"
+                  value={editCompany.name}
+                  onChange={(e) => setEditCompany({ ...editCompany, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  placeholder="Digite o nome da empresa"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição (opcional)</label>
+                <textarea
+                  value={editCompany.description}
+                  onChange={(e) => setEditCompany({ ...editCompany, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                  rows={3}
+                  placeholder="Descrição da empresa"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setShowEditCompanyModal(false)}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleUpdateCompany}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                Salvar
+              </button>
             </div>
           </div>
         </div>

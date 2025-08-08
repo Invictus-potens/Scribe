@@ -54,7 +54,8 @@ function SortableNoteItem({
     data: {
       type: 'note',
       note,
-    }
+    },
+    resizeObserverConfig: { disabled: false }
   });
 
   const style = {

@@ -33,7 +33,7 @@ export default function KanbanBoard() {
 
         setCurrentUser(user);
 
-        // Load user's accessible boards
+        // Load user's accessible boards (own + shared via companies)
         const { data: accessibleBoards } = await companyHelpers.getUserAccessibleBoards(user.id);
         setBoards(accessibleBoards || []);
 

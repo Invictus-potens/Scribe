@@ -53,18 +53,33 @@ export default function Calendar() {
     reminderMinutes: 15,
     color: 'blue'
   });
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<'default' | 'granted' | 'denied'>('default');
+
+  // Helpers to format local date/time strings
+  const formatLocalDateStr = (dateInput: string | Date) => {
+    const d = new Date(dateInput);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const formatLocalTimeStr = (dateInput: string | Date) => {
+    const d = new Date(dateInput);
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mi}`;
+  };
+
+  const getLocalDateFromYYYYMMDD = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, (m || 1) - 1, d || 1);
+  };
 
   // Request notification permission on component mount
   useEffect(() => {
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
-      if (Notification.permission === 'default') {
-        Notification.requestPermission().then(permission => {
-          setNotificationPermission(permission);
-        });
-      }
     }
   }, []);
 
@@ -114,12 +129,9 @@ export default function Calendar() {
       try {
         const { user } = await authHelpers.getCurrentUser();
         if (!user) {
-          setIsAuthenticated(false);
           setLoading(false);
           return;
         }
-
-        setIsAuthenticated(true);
         
         // Get events for current month
         const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString();
@@ -131,12 +143,12 @@ export default function Calendar() {
           return;
         }
 
-        // Convert CalendarEvent to Event format
+        // Convert CalendarEvent to Event format (local timezone)
         const convertedEvents: Event[] = (data || []).map(event => ({
           id: event.id,
           title: event.title,
-          date: new Date(event.start_date).toISOString().split('T')[0],
-          time: new Date(event.start_date).toTimeString().slice(0, 5),
+          date: formatLocalDateStr(event.start_date),
+          time: formatLocalTimeStr(event.start_date),
           description: event.description || '',
           reminder: event.reminder_set || false,
           reminderMinutes: event.reminder_minutes || 15,
@@ -191,18 +203,21 @@ export default function Calendar() {
     const month = String(currentDate.getMonth() + 1).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
     const dateStr = year + '-' + month + '-' + dayStr;
-    return events.filter(event => event.date === dateStr);
+    const filtered = events.filter(event => event.date === dateStr);
+    return filtered.sort((a, b) => {
+      const aKey = a.time && a.time.length === 5 ? a.time : '99:99';
+      const bKey = b.time && b.time.length === 5 ? b.time : '99:99';
+      return aKey.localeCompare(bKey);
+    });
   };
 
   const handlePrevMonth = () => {
     const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1);
-    console.log('Previous month:', newDate.toDateString());
     setCurrentDate(newDate);
   };
 
   const handleNextMonth = () => {
     const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1);
-    console.log('Next month:', newDate.toDateString());
     setCurrentDate(newDate);
   };
 
@@ -213,8 +228,9 @@ export default function Calendar() {
       const { user } = await authHelpers.getCurrentUser();
       if (!user) return;
 
-      // Create start date with time
-      const startDate = new Date(`${newEvent.date}T${newEvent.time}:00`);
+      // Create start date with time (default to 00:00 if empty)
+      const safeTime = newEvent.time && newEvent.time.trim() ? newEvent.time : '00:00';
+      const startDate = new Date(`${newEvent.date}T${safeTime}:00`);
       
       const calendarEvent: Omit<CalendarEvent, 'id' | 'created_at' | 'updated_at'> = {
         user_id: user.id,
@@ -236,15 +252,15 @@ export default function Calendar() {
       const event: Event = {
         id: data.id,
         title: data.title,
-        date: new Date(data.start_date).toISOString().split('T')[0],
-        time: new Date(data.start_date).toTimeString().slice(0, 5),
+        date: formatLocalDateStr(data.start_date),
+        time: formatLocalTimeStr(data.start_date),
         description: data.description || '',
         reminder: data.reminder_set || false,
         reminderMinutes: data.reminder_minutes || 15,
         color: data.color || 'blue'
       };
 
-      setEvents([...events, event]);
+      setEvents(prev => [...prev, event]);
       setShowEventModal(false);
       setNewEvent({
         title: '',
@@ -267,15 +283,13 @@ export default function Calendar() {
         console.error('Error deleting event:', error);
         return;
       }
-      setEvents(events.filter(event => event.id !== eventId));
+      setEvents(prev => prev.filter(event => event.id !== eventId));
     } catch (error) {
       console.error('Error deleting event:', error);
     }
   };
 
-  const handleMicrosoftAuth = () => {
-    setIsAuthenticated(true);
-  };
+  
 
   const requestNotificationPermission = () => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -300,8 +314,9 @@ export default function Calendar() {
       const { user } = await authHelpers.getCurrentUser();
       if (!user) return;
 
-      // Create start date with time
-      const startDate = new Date(`${editingEvent.date}T${editingEvent.time}:00`);
+      // Create start date with time (default to 00:00 if empty)
+      const safeTime = editingEvent.time && editingEvent.time.trim() ? editingEvent.time : '00:00';
+      const startDate = new Date(`${editingEvent.date}T${safeTime}:00`);
       
       const calendarEvent: Partial<CalendarEvent> = {
         title: editingEvent.title,
@@ -319,13 +334,13 @@ export default function Calendar() {
       }
 
       // Update the event in the local state
-      setEvents(events.map(event => 
+      setEvents(prev => prev.map(event => 
         event.id === editingEvent.id 
           ? {
               ...event,
               title: editingEvent.title,
-              date: new Date(data.start_date).toISOString().split('T')[0],
-              time: new Date(data.start_date).toTimeString().slice(0, 5),
+              date: formatLocalDateStr(data.start_date),
+              time: formatLocalTimeStr(data.start_date),
               description: editingEvent.description,
               reminder: editingEvent.reminder,
               reminderMinutes: editingEvent.reminderMinutes,
@@ -373,21 +388,6 @@ export default function Calendar() {
         </div>
 
         <div className="flex items-center space-x-4">
-          {!isAuthenticated ? (
-            <button
-              onClick={handleMicrosoftAuth}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
-            >
-              <i className="ri-microsoft-line w-4 h-4 flex items-center justify-center"></i>
-              <span>Connect Microsoft</span>
-            </button>
-          ) : (
-            <div className="flex items-center space-x-2 text-sm text-green-600 dark:text-green-400">
-              <i className="ri-check-line w-4 h-4 flex items-center justify-center"></i>
-              <span>Microsoft Connected</span>
-            </div>
-          )}
-
           {notificationPermission !== 'granted' && (
             <button
               onClick={requestNotificationPermission}
@@ -443,7 +443,7 @@ export default function Calendar() {
         return `${baseClasses} bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600`;
       }
       
-      return `${baseClasses} bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750`;
+      return `${baseClasses} bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700`;
     };
 
     // Função para determinar as classes do número do dia
@@ -494,7 +494,7 @@ export default function Calendar() {
         <div className="fixed right-6 top-20 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 z-40">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-              {new Date(selectedDate).toLocaleDateString('en-US', {
+              {getLocalDateFromYYYYMMDD(selectedDate).toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',

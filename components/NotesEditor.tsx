@@ -480,7 +480,7 @@ export default function NotesEditor({
               <i className="ri-file-copy-2-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
             </button>
             {showTemplates && (
-              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-2 max-h-64 overflow-auto">
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-2 max-h-64 overflow-auto text-gray-800 dark:text-gray-200">
                 <button
                   onClick={async () => {
                     const title = prompt('Título do modelo:');
@@ -491,7 +491,7 @@ export default function NotesEditor({
                     const { data, error } = await templatesHelpers.createTemplate(user.id, title, content, tags);
                     if (!error && data) setTemplates([data, ...templates]);
                   }}
-                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 mb-2"
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 mb-2 text-gray-700 dark:text-gray-300"
                 >
                   Salvar como modelo
                 </button>
@@ -509,7 +509,7 @@ export default function NotesEditor({
                       setShowTemplates(false);
                       setHasUnsavedChanges(true);
                     }}
-                    className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hoverbg-gray-700 text-gray-700 dark:text-gray-300"
                   >
                     {t.title}
                   </button>
@@ -528,7 +528,7 @@ export default function NotesEditor({
               <i className="ri-download-2-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
             </button>
             {showImportExport && (
-              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-2">
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-2 text-gray-800 dark:text-gray-200">
                 <button
                   onClick={() => {
                     import('turndown').then(({ default: TurndownService }) => {
@@ -541,7 +541,7 @@ export default function NotesEditor({
                       });
                     });
                   }}
-                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
                   Exportar Markdown
                 </button>
@@ -553,7 +553,7 @@ export default function NotesEditor({
                       saveAs(blob, `${title || 'nota'}.html`);
                     });
                   }}
-                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
                   Exportar HTML
                 </button>
@@ -565,7 +565,7 @@ export default function NotesEditor({
                       mod.default().from(container).save(`${title || 'nota'}.pdf`);
                     });
                   }}
-                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
                   Exportar PDF
                 </button>
@@ -585,12 +585,12 @@ export default function NotesEditor({
                     const content = await zip.generateAsync({ type: 'blob' });
                     saveAs(content, `${title || 'nota'}.zip`);
                   }}
-                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
                   Exportar ZIP (MD+HTML)
                 </button>
                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-2"></div>
-                <label className="block w-full px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                <label className="block w-full px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-gray-700 dark:text-gray-300">
                   Importar Markdown/HTML
                   <input
                     type="file"

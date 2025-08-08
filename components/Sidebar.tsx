@@ -511,7 +511,7 @@ export default function Sidebar({
         <div className="border-t border-gray-100 dark:border-gray-700 pt-2">
           {folders.length > 0 && (
             <div className="px-4 py-2">
-              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 Pastas
               </h4>
             </div>
@@ -540,7 +540,7 @@ export default function Sidebar({
         <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
           <div className="px-4 mb-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
                 {selectedFolder === 'all' ? 'Todas as Notas' : `${selectedFolder}`}
               </h4>
               <span className="text-xs text-gray-400 dark:text-gray-500">

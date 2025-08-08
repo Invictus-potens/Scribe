@@ -197,7 +197,7 @@ export default function KanbanBoard() {
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Kanban Board</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Kanban Board</h1>
           <select
             value={activeBoard.id}
             onChange={(e) => handleBoardChange(e.target.value)}
@@ -243,7 +243,7 @@ export default function KanbanBoard() {
               onDrop={(e) => handleDrop(e, column.id)}
             >
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-800 dark:text-gray-200">{column.title}</h3>
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100">{column.title}</h3>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500 bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
                     {column.cards.length}

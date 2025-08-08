@@ -474,11 +474,8 @@ export default function Home() {
       {/* Debug component - set show={true} to enable */}
       <ResponsiveDebug show={false} />
       
-<<<<<<< HEAD
-=======
       {/* Scale Control - set show={true} to enable */}
       <ScaleControl show={false} />
->>>>>>> parent of 5e1e5ca (Reverter)
     </div>
   );
 }

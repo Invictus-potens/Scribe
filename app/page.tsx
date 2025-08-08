@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -18,7 +18,7 @@ import {
   DragStartEvent,
   DragOverlay as DndKitDragOverlay,
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
+// import { arrayMove } from '@dnd-kit/sortable';
 import { supabase, authHelpers } from '../lib/supabase';
 import { useResponsive } from '../lib/useResponsive';
 import { useNotesManager } from '../lib/useNotesManager';
@@ -33,7 +33,6 @@ import ResponsiveDebug from '../components/ResponsiveDebug';
 import DragOverlay from '../components/DragOverlay';
 
 export default function Home() {
-  const screenSize = useResponsive();
   const [activeView, setActiveView] = useState('notes');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

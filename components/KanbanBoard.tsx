@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { kanbanHelpers, KanbanBoardWithData, KanbanCard, KanbanColumn } from '../lib/kanbanHelpers';
+import { kanbanHelpers, KanbanBoardWithData, KanbanCard } from '../lib/kanbanHelpers';
 import { companyHelpers } from '../lib/companyHelpers';
 import { authHelpers } from '../lib/supabase';
 import ShareBoardModal from './ShareBoardModal';
@@ -10,7 +10,7 @@ export default function KanbanBoard() {
   const [boards, setBoards] = useState<any[]>([]);
   const [activeBoard, setActiveBoard] = useState<KanbanBoardWithData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [, setCurrentUser] = useState<any>(null);
   const [showNewCardModal, setShowNewCardModal] = useState(false);
   const [newCardColumn, setNewCardColumn] = useState('');
   const [draggedCard, setDraggedCard] = useState<KanbanCard | null>(null);

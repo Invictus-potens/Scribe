@@ -23,7 +23,6 @@ export default function Header({
   setSearchTerm 
 }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showCompanyMenu, setShowCompanyMenu] = useState(false);
 
   const views = [
     { id: 'notes', label: 'Notes', icon: 'ri-file-text-line' },

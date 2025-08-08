@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -186,7 +186,7 @@ export default function DraggableNotesList({
         items={sortedNotes.map(note => note.id)}
         strategy={verticalListSortingStrategy}
       >
-        {sortedNotes.map((note, index) => (
+        {sortedNotes.map((note) => (
           <SortableNoteItem
             key={note.id}
             note={note}

@@ -23,11 +23,6 @@ import Highlight from '@tiptap/extension-highlight';
 
 import Dropcursor from '@tiptap/extension-dropcursor';
 import { notesHelpers, Note, authHelpers, templatesHelpers } from '../lib/supabase';
-import { saveAs } from 'file-saver';
-import TurndownService from 'turndown';
-import html2pdf from 'html2pdf.js';
-import JSZip from 'jszip';
-import { marked } from 'marked';
 
 // Verificar se estamos no lado do cliente
 const isClient = typeof window !== 'undefined';
@@ -202,7 +197,7 @@ export default function NotesEditor({
       }
     }
   }, [checkForRealChanges, hasUnsavedChanges, selectedNote, editor, setHasUnsavedChanges]);
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!selectedNote) return;
 
     try {
@@ -263,7 +258,7 @@ export default function NotesEditor({
       console.error('Error saving note:', error);
       alert('An unexpected error occurred while saving the note');
     }
-  };
+  }, [selectedNote, authHelpers, editor, isPinned, isFavorite, isArchived, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved, title, tags]);
 
   // Atualizar o ref da função de salvar sempre que handleSave mudar
   useEffect(() => {
@@ -475,6 +470,7 @@ export default function NotesEditor({
           >
             <i className="ri-layout-column-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
           </button>
+          {typeof window !== 'undefined' && (
           <div className="relative">
             <button
               onClick={() => setShowTemplates(s => !s)}
@@ -521,6 +517,8 @@ export default function NotesEditor({
               </div>
             )}
           </div>
+          )}
+          {typeof window !== 'undefined' && (
           <div className="relative">
             <button
               onClick={() => setShowImportExport(s => !s)}
@@ -533,11 +531,15 @@ export default function NotesEditor({
               <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-2">
                 <button
                   onClick={() => {
-                    const html = editor?.getHTML() || '';
-                    const turndown = new TurndownService();
-                    const md = turndown.turndown(html);
-                    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-                    saveAs(blob, `${title || 'nota'}.md`);
+                    import('turndown').then(({ default: TurndownService }) => {
+                      import('file-saver').then(({ saveAs }) => {
+                        const html = editor?.getHTML() || '';
+                        const turndown = new TurndownService();
+                        const md = turndown.turndown(html);
+                        const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+                        saveAs(blob, `${title || 'nota'}.md`);
+                      });
+                    });
                   }}
                   className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
@@ -545,9 +547,11 @@ export default function NotesEditor({
                 </button>
                 <button
                   onClick={() => {
-                    const html = editor?.getHTML() || '';
-                    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-                    saveAs(blob, `${title || 'nota'}.html`);
+                    import('file-saver').then(({ saveAs }) => {
+                      const html = editor?.getHTML() || '';
+                      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                      saveAs(blob, `${title || 'nota'}.html`);
+                    });
                   }}
                   className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
@@ -555,9 +559,11 @@ export default function NotesEditor({
                 </button>
                 <button
                   onClick={() => {
-                    const container = document.createElement('div');
-                    container.innerHTML = editor?.getHTML() || '';
-                    html2pdf().from(container).save(`${title || 'nota'}.pdf`);
+                    import('html2pdf.js').then((mod: any) => {
+                      const container = document.createElement('div');
+                      container.innerHTML = editor?.getHTML() || '';
+                      mod.default().from(container).save(`${title || 'nota'}.pdf`);
+                    });
                   }}
                   className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
@@ -565,6 +571,11 @@ export default function NotesEditor({
                 </button>
                 <button
                   onClick={async () => {
+                    const [{ default: JSZip }, { default: TurndownService }, { saveAs }] = await Promise.all([
+                      import('jszip'),
+                      import('turndown'),
+                      import('file-saver'),
+                    ]);
                     const zip = new JSZip();
                     const html = editor?.getHTML() || '';
                     const turndown = new TurndownService();
@@ -591,8 +602,9 @@ export default function NotesEditor({
                       const text = await file.text();
                       const isMarkdown = file.name.endsWith('.md') || file.type.includes('markdown');
                       if (isMarkdown) {
-                        const html = marked(text);
-                        editor?.commands.setContent(html);
+                        const { marked } = await import('marked');
+                        const html = marked(text) as any;
+                        editor?.commands.setContent(String(html));
                       } else {
                         editor?.commands.setContent(text);
                       }
@@ -604,6 +616,7 @@ export default function NotesEditor({
               </div>
             )}
           </div>
+          )}
           {selectedNote && selectedNote.id && (
             <button
               onClick={() => {

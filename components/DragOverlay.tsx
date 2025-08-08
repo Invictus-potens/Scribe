@@ -1,7 +1,7 @@
 'use client';
 
-import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
+// import { useDraggable } from '@dnd-kit/core';
+// import { CSS } from '@dnd-kit/utilities';
 
 interface DragOverlayProps {
   note: {

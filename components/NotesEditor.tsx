@@ -22,8 +22,12 @@ import Superscript from '@tiptap/extension-superscript';
 import Highlight from '@tiptap/extension-highlight';
 
 import Dropcursor from '@tiptap/extension-dropcursor';
-import { notesHelpers, Note } from '../lib/supabase';
-import { authHelpers } from '../lib/supabase';
+import { notesHelpers, Note, authHelpers, templatesHelpers } from '../lib/supabase';
+import { saveAs } from 'file-saver';
+import TurndownService from 'turndown';
+import html2pdf from 'html2pdf.js';
+import JSZip from 'jszip';
+import { marked } from 'marked';
 
 // Verificar se estamos no lado do cliente
 const isClient = typeof window !== 'undefined';
@@ -64,6 +68,11 @@ export default function NotesEditor({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [isFavorite, setIsFavorite] = useState<boolean>(false);
+  const [isArchived, setIsArchived] = useState<boolean>(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showImportExport, setShowImportExport] = useState(false);
 
   // Usar estado local ou global
   const hasUnsavedChanges = globalHasUnsavedChanges || localHasUnsavedChanges;
@@ -133,12 +142,23 @@ export default function NotesEditor({
       setTitle(selectedNote.title || '');
       setTags(selectedNote.tags || []);
       setIsPinned(selectedNote.is_pinned || false);
+      setIsFavorite(selectedNote.is_favorite || false);
+      setIsArchived(selectedNote.is_archived || false);
       setHasUnsavedChanges(false);
       
       // Update editor content
       editor.commands.setContent(selectedNote.content || '');
     }
   }, [selectedNote, editor, setHasUnsavedChanges]);
+
+  useEffect(() => {
+    (async () => {
+      const { user } = await authHelpers.getCurrentUser();
+      if (!user) return;
+      const { data } = await templatesHelpers.getTemplates(user.id);
+      setTemplates(data || []);
+    })();
+  }, []);
 
   // Verificar se há mudanças reais comparando com o conteúdo original
   const checkForRealChanges = useCallback(() => {
@@ -200,6 +220,8 @@ export default function NotesEditor({
         content,
         tags,
         is_pinned: isPinned,
+        is_favorite: isFavorite,
+        is_archived: isArchived,
         folder: selectedFolder !== 'all' ? selectedFolder : undefined,
       };
 
@@ -403,6 +425,46 @@ export default function NotesEditor({
           >
             <i className={`ri-pushpin-${isPinned ? 'fill' : 'line'} w-4 h-4 flex items-center justify-center`}></i>
           </button>
+          <button
+            onClick={async () => {
+              const newFav = !isFavorite;
+              setIsFavorite(newFav);
+              if (selectedNote?.id) {
+                await notesHelpers.toggleFavorite(selectedNote.id, newFav);
+                setHasUnsavedChanges(false);
+              } else {
+                setHasUnsavedChanges(true);
+              }
+            }}
+            className={`p-2 rounded-lg transition-colors ${
+              isFavorite 
+                ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200' 
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+            }`}
+            title={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+          >
+            <i className={`ri-star-${isFavorite ? 'fill' : 'line'} w-4 h-4 flex items-center justify-center`}></i>
+          </button>
+          <button
+            onClick={async () => {
+              const newArchived = !isArchived;
+              setIsArchived(newArchived);
+              if (selectedNote?.id) {
+                await notesHelpers.toggleArchived(selectedNote.id, newArchived);
+                setHasUnsavedChanges(false);
+              } else {
+                setHasUnsavedChanges(true);
+              }
+            }}
+            className={`p-2 rounded-lg transition-colors ${
+              isArchived 
+                ? 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100' 
+                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+            }`}
+            title={isArchived ? 'Desarquivar' : 'Arquivar'}
+          >
+            <i className="ri-archive-line w-4 h-4 flex items-center justify-center"></i>
+          </button>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -413,6 +475,135 @@ export default function NotesEditor({
           >
             <i className="ri-layout-column-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
           </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowTemplates(s => !s)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title="Modelos"
+            >
+              <i className="ri-file-copy-2-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
+            </button>
+            {showTemplates && (
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-2 max-h-64 overflow-auto">
+                <button
+                  onClick={async () => {
+                    const title = prompt('Título do modelo:');
+                    if (!title) return;
+                    const { user } = await authHelpers.getCurrentUser();
+                    if (!user) return;
+                    const content = editor?.getHTML() || '';
+                    const { data, error } = await templatesHelpers.createTemplate(user.id, title, content, tags);
+                    if (!error && data) setTemplates([data, ...templates]);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 mb-2"
+                >
+                  Salvar como modelo
+                </button>
+                <div className="text-xs text-gray-500 dark:text-gray-400 px-2 mt-1">Modelos</div>
+                {templates.length === 0 && (
+                  <div className="px-3 py-2 text-sm text-gray-500">Nenhum modelo</div>
+                )}
+                {templates.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      editor?.commands.setContent(t.content || '');
+                      setTitle(t.title || title);
+                      setTags(t.tags || []);
+                      setShowTemplates(false);
+                      setHasUnsavedChanges(true);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    {t.title}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button
+              onClick={() => setShowImportExport(s => !s)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title="Importar/Exportar"
+            >
+              <i className="ri-download-2-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
+            </button>
+            {showImportExport && (
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-2">
+                <button
+                  onClick={() => {
+                    const html = editor?.getHTML() || '';
+                    const turndown = new TurndownService();
+                    const md = turndown.turndown(html);
+                    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+                    saveAs(blob, `${title || 'nota'}.md`);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Exportar Markdown
+                </button>
+                <button
+                  onClick={() => {
+                    const html = editor?.getHTML() || '';
+                    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                    saveAs(blob, `${title || 'nota'}.html`);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Exportar HTML
+                </button>
+                <button
+                  onClick={() => {
+                    const container = document.createElement('div');
+                    container.innerHTML = editor?.getHTML() || '';
+                    html2pdf().from(container).save(`${title || 'nota'}.pdf`);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Exportar PDF
+                </button>
+                <button
+                  onClick={async () => {
+                    const zip = new JSZip();
+                    const html = editor?.getHTML() || '';
+                    const turndown = new TurndownService();
+                    const md = turndown.turndown(html);
+                    zip.file(`${title || 'nota'}.md`, md);
+                    zip.file(`${title || 'nota'}.html`, html);
+                    const content = await zip.generateAsync({ type: 'blob' });
+                    saveAs(content, `${title || 'nota'}.zip`);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Exportar ZIP (MD+HTML)
+                </button>
+                <div className="h-px bg-gray-200 dark:bg-gray-700 my-2"></div>
+                <label className="block w-full px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
+                  Importar Markdown/HTML
+                  <input
+                    type="file"
+                    accept=".md,.markdown,.html,.htm,text/markdown,text/html"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const text = await file.text();
+                      const isMarkdown = file.name.endsWith('.md') || file.type.includes('markdown');
+                      if (isMarkdown) {
+                        const html = marked(text);
+                        editor?.commands.setContent(html);
+                      } else {
+                        editor?.commands.setContent(text);
+                      }
+                      setHasUnsavedChanges(true);
+                      setShowImportExport(false);
+                    }}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
           {selectedNote && selectedNote.id && (
             <button
               onClick={() => {

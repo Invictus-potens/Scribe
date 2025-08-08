@@ -157,7 +157,13 @@ export default function Sidebar({
   notes = []
 }: SidebarProps) {
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [onlyPinned, setOnlyPinned] = useState(false);
+  const [tagQuery, setTagQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
@@ -198,13 +204,46 @@ export default function Sidebar({
     console.log('Sidebar: selectedFolder:', selectedFolder);
     console.log('Sidebar: total de notas:', notes.length);
     
-    const filtered = notes.filter(note => {
+    let base = notes;
+    if (showArchived) {
+      base = base.filter(n => n.is_archived);
+    } else {
+      base = base.filter(n => !n.is_archived);
+    }
+    if (showFavorites) {
+      base = base.filter(n => n.is_favorite);
+    }
+
+    const tagTokens = tagQuery
+      .split(',')
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean);
+
+    const filtered = base.filter(note => {
       // Filtrar por pasta selecionada
       if (selectedFolder !== 'all') {
         if (note.folder !== selectedFolder) {
           console.log('Sidebar: nota filtrada por pasta:', note.title, 'pasta:', note.folder, 'selectedFolder:', selectedFolder);
           return false;
         }
+      }
+      if (onlyPinned && !note.is_pinned) return false;
+      // Tags
+      if (tagTokens.length > 0) {
+        const noteTags = (note.tags || []).map(t => (t || '').toLowerCase());
+        const hasAny = tagTokens.some(t => noteTags.includes(t));
+        if (!hasAny) return false;
+      }
+      // Date range
+      if (dateFrom) {
+        const updated = note.updated_at ? new Date(note.updated_at).getTime() : 0;
+        const fromTs = new Date(dateFrom).getTime();
+        if (!(updated >= fromTs)) return false;
+      }
+      if (dateTo) {
+        const updated = note.updated_at ? new Date(note.updated_at).getTime() : 0;
+        const toTs = new Date(dateTo).getTime();
+        if (!(updated <= toTs)) return false;
       }
       
       // Filtrar por termo de busca
@@ -217,7 +256,7 @@ export default function Sidebar({
     
     console.log('Sidebar: notas filtradas:', filtered.length);
     return filtered;
-  }, [notes, selectedFolder, searchTerm, stripHtml]);
+  }, [notes, selectedFolder, searchTerm, stripHtml, showFavorites, showArchived, onlyPinned, tagQuery, dateFrom, dateTo]);
 
   const handleNewFolder = async () => {
     if (!newFolderName.trim()) return;
@@ -403,6 +442,53 @@ export default function Sidebar({
           <i className="ri-folder-add-line w-4 h-4"></i>
           <span>Nova Pasta</span>
         </button>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <button
+            onClick={() => setShowFavorites(v => !v)}
+            className={`flex-1 p-2 text-xs rounded-lg transition-colors ${showFavorites ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
+            title="Filtrar favoritos"
+          >
+            <i className="ri-star-fill mr-1"></i>
+            Favoritos
+          </button>
+          <button
+            onClick={() => setShowArchived(v => !v)}
+            className={`flex-1 p-2 text-xs rounded-lg transition-colors ${showArchived ? 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
+            title="Mostrar arquivadas"
+          >
+            <i className="ri-archive-line mr-1"></i>
+            Arquivadas
+          </button>
+          <button
+            onClick={() => setOnlyPinned(v => !v)}
+            className={`flex-1 p-2 text-xs rounded-lg transition-colors ${onlyPinned ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
+            title="Somente fixadas"
+          >
+            <i className="ri-pushpin-2-line mr-1"></i>
+            Fixadas
+          </button>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <input
+            type="text"
+            placeholder="Tags (separe por vírgula)"
+            value={tagQuery}
+            onChange={e => setTagQuery(e.target.value)}
+            className="col-span-2 px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300"
+          />
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+            className="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300"
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            className="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300"
+          />
+        </div>
       </div>
 
       {/* Folders and Notes */}

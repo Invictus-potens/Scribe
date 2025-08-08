@@ -51,6 +51,8 @@ export interface Note {
   folder?: string
   tags?: string[]
   is_pinned?: boolean
+  is_favorite?: boolean
+  is_archived?: boolean
   is_private?: boolean
   position?: number
   created_at?: string
@@ -260,6 +262,23 @@ export const authHelpers = {
 }
 
 export const notesHelpers = {
+  async toggleFavorite(id: string, isFavorite: boolean) {
+    return supabase
+      .from('notes')
+      .update({ is_favorite: isFavorite, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+  },
+
+  async toggleArchived(id: string, isArchived: boolean) {
+    return supabase
+      .from('notes')
+      .update({ is_archived: isArchived, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+  },
   async getNotes(userId: string, folder?: string) {
     let query = supabase
       .from('notes')
@@ -320,6 +339,35 @@ export const notesHelpers = {
       .eq('id', id)
     return { error }
   }
+}
+
+// Templates helpers
+export const templatesHelpers = {
+  async getTemplates(userId: string) {
+    const { data, error } = await supabase
+      .from('note_templates')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    return { data, error }
+  },
+
+  async createTemplate(userId: string, title: string, content: string, tags: string[] = []) {
+    const { data, error } = await supabase
+      .from('note_templates')
+      .insert([{ user_id: userId, title, content, tags }])
+      .select()
+      .single()
+    return { data, error }
+  },
+
+  async deleteTemplate(id: string) {
+    const { error } = await supabase
+      .from('note_templates')
+      .delete()
+      .eq('id', id)
+    return { error }
+  },
 }
 
 export const foldersHelpers = {

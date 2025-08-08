@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { authHelpers } from '../lib/supabase';
-import { companyHelpers } from '../lib/companyHelpers';
+import { companyHelpers, type CompanyMember } from '../lib/companyHelpers';
 
 interface HeaderProps {
   activeView: string;
@@ -26,17 +26,49 @@ export default function Header({
 }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [invitations, setInvitations] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<CompanyMember[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [processing, setProcessing] = useState<Record<string, 'accept' | 'decline' | null>>({});
 
   useEffect(() => {
     const loadInvites = async () => {
       const { user } = await authHelpers.getCurrentUser();
       if (!user) return;
+      setCurrentUserId(user.id);
       const { data } = await companyHelpers.getUserInvitations(user.id);
       setInvitations(data || []);
     };
     loadInvites();
   }, []);
+
+  const handleInvitationAction = async (
+    invitation: CompanyMember,
+    action: 'accept' | 'decline'
+  ) => {
+    if (!currentUserId) return;
+    setProcessing(prev => ({ ...prev, [invitation.id]: action }));
+    try {
+      if (action === 'accept') {
+        const { error } = await companyHelpers.acceptInvitation(
+          invitation.company_id,
+          currentUserId
+        );
+        if (error) throw error;
+      } else {
+        const { error } = await companyHelpers.declineInvitation(
+          invitation.company_id,
+          currentUserId
+        );
+        if (error) throw error;
+      }
+      setInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
+    } catch (err) {
+      // Optional: show a simple feedback. Keep minimal per request.
+      console.error('Invitation action failed', err);
+    } finally {
+      setProcessing(prev => ({ ...prev, [invitation.id]: null }));
+    }
+  };
 
   const views = [
     { id: 'notes', label: 'Notes', icon: 'ri-file-text-line' },
@@ -132,11 +164,21 @@ export default function Header({
                       <div className="text-sm text-gray-800 dark:text-gray-200">Convite para empresa</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Status: {inv.status}</div>
                       <div className="flex items-center space-x-2">
-                        <button className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded" title="Aceitar">
-                          Aceitar
+                        <button
+                          onClick={() => handleInvitationAction(inv, 'accept')}
+                          disabled={!!processing[inv.id]}
+                          className={`px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded ${processing[inv.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Aceitar"
+                        >
+                          {processing[inv.id] === 'accept' ? 'Aceitando...' : 'Aceitar'}
                         </button>
-                        <button className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded" title="Recusar">
-                          Recusar
+                        <button
+                          onClick={() => handleInvitationAction(inv, 'decline')}
+                          disabled={!!processing[inv.id]}
+                          className={`px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded ${processing[inv.id] ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Recusar"
+                        >
+                          {processing[inv.id] === 'decline' ? 'Recusando...' : 'Recusar'}
                         </button>
                       </div>
                     </div>

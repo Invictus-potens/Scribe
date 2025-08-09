@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { supabase } from '../lib/supabase';
 import { kanbanHelpers, KanbanBoardWithData, KanbanCard } from '../lib/kanbanHelpers';
 import { companyHelpers, type BoardPermissions, type AccessibleBoardMeta } from '../lib/companyHelpers';
 import ConfirmDialog from './ConfirmDialog';
@@ -42,6 +43,7 @@ export default function KanbanBoard() {
   const [showEditCardModal, setShowEditCardModal] = useState(false);
   const [editCard, setEditCard] = useState<{ id: string; column_id: string; title: string; description: string; assignee: string; priority: 'low'|'medium'|'high'; dueDate: string } | null>(null);
   const toast = useToast();
+  const realtimeRef = useRef<any>(null);
 
   // Load data on component mount
   useEffect(() => {
@@ -387,6 +389,122 @@ export default function KanbanBoard() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [showNewCardModal]);
+
+  // Realtime: subscribe to changes for the active board
+  useEffect(() => {
+    if (!activeBoard || !currentUser) return;
+
+    // Build cards filter from current columns
+    const columnIds = activeBoard.columns.map(c => c.id);
+    const cardsFilter = columnIds.length > 0 ? `column_id=in.(${columnIds.join(',')})` : '';
+
+    // Clean previous channel
+    if (realtimeRef.current) {
+      supabase.removeChannel(realtimeRef.current);
+      realtimeRef.current = null;
+    }
+
+    const channel = supabase.channel(`realtime:board:${activeBoard.id}`, {
+      config: { presence: { key: currentUser.id } }
+    });
+
+    // Boards: update/delete
+    channel.on('postgres_changes', {
+      event: '*', schema: 'public', table: 'kanban_boards', filter: `id=eq.${activeBoard.id}`
+    }, (payload: any) => {
+      if (payload.eventType === 'UPDATE') {
+        setBoards(prev => prev.map(b => (b.id === payload.new.id ? { ...b, title: payload.new.title } : b)));
+        setActiveBoard(b => (b ? { ...b, title: payload.new.title } : b));
+      } else if (payload.eventType === 'DELETE') {
+        // If board deleted elsewhere, fallback to first available or create default
+        setBoards(prev => prev.filter(b => b.id !== payload.old.id));
+        setActiveBoard(null);
+      }
+    });
+
+    // Columns: insert/update/delete for this board
+    channel.on('postgres_changes', {
+      event: '*', schema: 'public', table: 'kanban_columns', filter: `board_id=eq.${activeBoard.id}`
+    }, (payload: any) => {
+      setActiveBoard(prev => {
+        if (!prev) return prev;
+        if (payload.eventType === 'INSERT') {
+          const exists = prev.columns.some(c => c.id === payload.new.id);
+          if (exists) return prev;
+          const cols = [...prev.columns, { ...payload.new, cards: [] }].sort((a, b) => a.order_index - b.order_index);
+          return { ...prev, columns: cols };
+        }
+        if (payload.eventType === 'UPDATE') {
+          const cols = prev.columns.map(c => c.id === payload.new.id ? { ...c, title: payload.new.title, order_index: payload.new.order_index } : c)
+            .sort((a, b) => a.order_index - b.order_index);
+          return { ...prev, columns: cols };
+        }
+        if (payload.eventType === 'DELETE') {
+          const cols = prev.columns.filter(c => c.id !== payload.old.id);
+          return { ...prev, columns: cols };
+        }
+        return prev;
+      });
+    });
+
+    // Cards: insert/update/delete for columns of this board
+    if (cardsFilter) {
+      channel.on('postgres_changes', {
+        event: '*', schema: 'public', table: 'kanban_cards', filter: cardsFilter
+      }, (payload: any) => {
+        setActiveBoard(prev => {
+          if (!prev) return prev;
+          const cols = prev.columns.map(c => ({ ...c, cards: [...c.cards] }));
+          if (payload.eventType === 'INSERT') {
+            const idx = cols.findIndex(c => c.id === payload.new.column_id);
+            if (idx >= 0) {
+              const list = cols[idx].cards;
+              const insertAt = Math.min(payload.new.order_index ?? list.length, list.length);
+              const exists = list.some((cd: any) => cd.id === payload.new.id);
+              if (!exists) {
+                list.splice(insertAt, 0, payload.new);
+                cols[idx].cards = list.map((cd: any, i: number) => ({ ...cd, order_index: i }));
+              }
+            }
+          } else if (payload.eventType === 'UPDATE') {
+            // moved or updated
+            const oldColIdx = cols.findIndex(c => c.id === payload.old.column_id);
+            const newColIdx = cols.findIndex(c => c.id === payload.new.column_id);
+            if (oldColIdx >= 0) {
+              cols[oldColIdx].cards = cols[oldColIdx].cards.filter((cd: any) => cd.id !== payload.new.id).map((cd: any, i: number) => ({ ...cd, order_index: i }));
+            }
+            if (newColIdx >= 0) {
+              const list = cols[newColIdx].cards;
+              const at = Math.min(payload.new.order_index ?? list.length, list.length);
+              const exists = list.some((cd: any) => cd.id === payload.new.id);
+              if (!exists) {
+                list.splice(at, 0, payload.new);
+              } else {
+                cols[newColIdx].cards = list.map((cd: any) => cd.id === payload.new.id ? { ...cd, ...payload.new } : cd);
+              }
+              cols[newColIdx].cards = cols[newColIdx].cards.map((cd: any, i: number) => ({ ...cd, order_index: i }));
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const ci = cols.findIndex(c => c.id === payload.old.column_id);
+            if (ci >= 0) {
+              cols[ci].cards = cols[ci].cards.filter((cd: any) => cd.id !== payload.old.id).map((cd: any, i: number) => ({ ...cd, order_index: i }));
+            }
+          }
+          return { ...prev, columns: cols };
+        });
+      });
+    }
+
+    channel.subscribe();
+    realtimeRef.current = channel;
+
+    return () => {
+      if (realtimeRef.current) {
+        supabase.removeChannel(realtimeRef.current);
+        realtimeRef.current = null;
+      }
+    };
+  }, [activeBoard?.id, JSON.stringify((activeBoard?.columns || []).map(c => c.id)), currentUser?.id]);
 
   if (loading) {
     return (

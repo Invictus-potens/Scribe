@@ -236,7 +236,6 @@ export default function KanbanBoard() {
 
       const updatedBoard = { ...activeBoard, columns: updatedColumns };
       setActiveBoard(updatedBoard);
-      setBoards(boards.map(board => board.id === activeBoard.id ? updatedBoard : board));
     } catch (error) {
       console.error('Error moving card:', error);
       toast.error('Erro ao mover o card.');
@@ -294,7 +293,6 @@ export default function KanbanBoard() {
 
       const updatedBoard = { ...activeBoard, columns: updatedColumns };
       setActiveBoard(updatedBoard);
-      setBoards(boards.map(board => board.id === activeBoard.id ? updatedBoard : board));
       setShowNewCardModal(false);
       setNewCard({
         title: '',

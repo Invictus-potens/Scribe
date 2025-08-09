@@ -155,9 +155,9 @@ export const companyHelpers = {
     });
     if (error) {
       // Log completo para debug no console e retornar motivo legível
-      // @ts-expect-error supabase error can have details/hint/Code
-      const details = error.details || error.hint || '';
-      const code = (error as any).code ? ` [${(error as any).code}]` : '';
+      const err: any = error as any;
+      const details = err?.details || err?.hint || '';
+      const code = err?.code ? ` [${err.code}]` : '';
       const message = `${error.message || 'Failed to invite user'}${code}${details ? `: ${details}` : ''}`;
       console.error('invite_user_to_company RPC error:', { error });
       return { success: false, message };

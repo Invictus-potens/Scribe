@@ -182,16 +182,19 @@ export const kanbanHelpers = {
   },
 
   async reorderCards(columnId: string, cardIds: string[]): Promise<{ error: any }> {
-    const updates = cardIds.map((id, index) => ({
-      id,
-      order_index: index
-    }));
-
-    const { error } = await supabase
-      .from('kanban_cards')
-      .upsert(updates);
-
-    return { error };
+    try {
+      await Promise.all(
+        cardIds.map((id, index) =>
+          supabase
+            .from('kanban_cards')
+            .update({ order_index: index })
+            .eq('id', id)
+        )
+      );
+      return { error: null };
+    } catch (error) {
+      return { error } as any;
+    }
   },
 
   // Get complete board with columns and cards

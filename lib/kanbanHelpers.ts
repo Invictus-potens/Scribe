@@ -214,21 +214,27 @@ export const kanbanHelpers = {
 
     if (columnsError) return { data: null, error: columnsError };
 
-    // Get cards for each column
-    const columnsWithCards = await Promise.all(
-      columns.map(async (column) => {
-        const { data: cards } = await supabase
-          .from('kanban_cards')
-          .select('*')
-          .eq('column_id', column.id)
-          .order('order_index', { ascending: true });
+    // Get all cards in a single query and group by column
+    const columnIds = (columns || []).map(c => c.id);
+    let cardsByColumn: Record<string, KanbanCard[]> = {};
+    if (columnIds.length > 0) {
+      const { data: allCards, error: cardsError } = await supabase
+        .from('kanban_cards')
+        .select('*')
+        .in('column_id', columnIds as any)
+        .order('order_index', { ascending: true });
+      if (cardsError) return { data: null, error: cardsError };
+      for (const card of allCards || []) {
+        const list = cardsByColumn[card.column_id] || [];
+        list.push(card as any);
+        cardsByColumn[card.column_id] = list;
+      }
+    }
 
-        return {
-          ...column,
-          cards: cards || []
-        };
-      })
-    );
+    const columnsWithCards = (columns || []).map((column) => ({
+      ...column,
+      cards: cardsByColumn[column.id] || []
+    }));
 
     const boardWithData: KanbanBoardWithData = {
       ...board,

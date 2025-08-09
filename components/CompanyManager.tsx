@@ -25,6 +25,7 @@ export default function CompanyManager() {
     email: '',
     role: 'member' as 'admin' | 'member'
   });
+  const [banner, setBanner] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -37,6 +38,7 @@ export default function CompanyManager() {
         setCompanies(userCompanies || []);
       } catch (error) {
         console.error('Error loading companies:', error);
+        setBanner({ type: 'error', text: 'Erro ao carregar empresas.' });
       } finally {
         setLoading(false);
       }
@@ -57,6 +59,7 @@ export default function CompanyManager() {
 
       if (error) {
         console.error('Error creating company:', error);
+        setBanner({ type: 'error', text: 'Erro ao criar empresa.' });
         return;
       }
 
@@ -65,9 +68,11 @@ export default function CompanyManager() {
         setCompanies(prev => [data, ...prev]);
         setShowCreateModal(false);
         setNewCompany({ name: '', description: '' });
+        setBanner({ type: 'success', text: 'Empresa criada com sucesso.' });
       }
     } catch (error) {
       console.error('Error creating company:', error);
+      setBanner({ type: 'error', text: 'Erro inesperado ao criar empresa.' });
     }
   };
 
@@ -87,11 +92,14 @@ export default function CompanyManager() {
         // Reload company members
         const { data: members } = await companyHelpers.getCompanyMembers(selectedCompany.id);
         setCompanyMembers(members || []);
+        setBanner({ type: 'success', text: 'Convite enviado com sucesso.' });
       } else {
-        alert(result.message);
+        console.warn('Invite failed:', result.message);
+        setBanner({ type: 'info', text: result.message || 'Não foi possível enviar o convite.' });
       }
     } catch (error) {
       console.error('Error inviting user:', error);
+      setBanner({ type: 'error', text: 'Erro ao convidar usuário.' });
     }
   };
 
@@ -104,6 +112,7 @@ export default function CompanyManager() {
       setCompanyMembers(members || []);
     } catch (error) {
       console.error('Error loading members:', error);
+      setBanner({ type: 'error', text: 'Erro ao carregar membros.' });
     }
   };
 
@@ -123,6 +132,7 @@ export default function CompanyManager() {
       setCompanyMembers(prev => prev.map(m => m.id === member.id ? { ...m, role } : m));
     } catch (e) {
       console.error('Erro ao alterar função do membro', e);
+      setBanner({ type: 'error', text: 'Erro ao alterar função do membro.' });
     } finally {
       setMemberOps(prev => ({ ...prev, [member.id]: null }));
     }
@@ -138,6 +148,7 @@ export default function CompanyManager() {
       setCompanyMembers(prev => prev.filter(m => m.id !== member.id));
     } catch (e) {
       console.error('Erro ao remover membro', e);
+      setBanner({ type: 'error', text: 'Erro ao remover membro.' });
     } finally {
       setMemberOps(prev => ({ ...prev, [member.id]: null }));
     }
@@ -159,6 +170,7 @@ export default function CompanyManager() {
       }
     } catch (e) {
       console.error('Erro ao atualizar empresa', e);
+      setBanner({ type: 'error', text: 'Erro ao atualizar empresa.' });
     }
   };
 
@@ -187,6 +199,15 @@ export default function CompanyManager() {
           <span>Nova Empresa</span>
         </button>
       </div>
+
+      {banner && (
+        <div className={`mx-6 mt-3 rounded-md p-3 text-sm ${banner.type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100' : banner.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'}`}>
+          <div className="flex items-center justify-between">
+            <span>{banner.text}</span>
+            <button onClick={() => setBanner(null)} className="ml-4 text-xs opacity-70 hover:opacity-100">Fechar</button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

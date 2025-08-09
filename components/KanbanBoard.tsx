@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { kanbanHelpers, KanbanBoardWithData, KanbanCard } from '../lib/kanbanHelpers';
-import { companyHelpers } from '../lib/companyHelpers';
+import { companyHelpers, type BoardPermissions } from '../lib/companyHelpers';
 import { authHelpers } from '../lib/supabase';
 import ShareBoardModal from './ShareBoardModal';
 
@@ -23,6 +23,7 @@ export default function KanbanBoard() {
     tags: [] as string[]
   });
   const [showShareModal, setShowShareModal] = useState(false);
+  const [banner, setBanner] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
 
   // Load data on component mount
   useEffect(() => {
@@ -92,18 +93,24 @@ export default function KanbanBoard() {
     try {
       if (!activeBoard) return;
       const meta = boards.find(b => b.id === activeBoard.id);
-      if (meta?.is_shared) {
-        alert('Não é possível renomear um board compartilhado.');
+      const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+      if (!can('manage_board')) {
+        setBanner({ type: 'info', text: 'Você não tem permissão para renomear este board.' });
         return;
       }
       const newTitle = typeof window !== 'undefined' ? window.prompt('Novo nome do board', activeBoard.title) : activeBoard.title;
       if (!newTitle || newTitle.trim() === '' || newTitle === activeBoard.title) return;
       const { data, error } = await kanbanHelpers.updateBoard(activeBoard.id, newTitle.trim());
-      if (error || !data) return;
+      if (error || !data) {
+        setBanner({ type: 'error', text: 'Erro ao renomear o board.' });
+        return;
+      }
       setBoards(prev => prev.map(b => (b.id === data.id ? { ...b, title: data.title } : b)));
       setActiveBoard({ ...activeBoard, title: data.title });
+      setBanner({ type: 'success', text: 'Board renomeado com sucesso.' });
     } catch (error) {
       console.error('Error renaming board:', error);
+      setBanner({ type: 'error', text: 'Erro inesperado ao renomear o board.' });
     }
   };
 
@@ -111,14 +118,18 @@ export default function KanbanBoard() {
     try {
       if (!activeBoard) return;
       const meta = boards.find(b => b.id === activeBoard.id);
-      if (meta?.is_shared) {
-        alert('Não é possível excluir um board compartilhado.');
+      const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+      if (!can('manage_board')) {
+        setBanner({ type: 'info', text: 'Você não tem permissão para excluir este board.' });
         return;
       }
       const confirmed = typeof window !== 'undefined' ? window.confirm('Excluir este board? Esta ação não pode ser desfeita.') : false;
       if (!confirmed) return;
       const { error } = await kanbanHelpers.deleteBoard(activeBoard.id);
-      if (error) return;
+      if (error) {
+        setBanner({ type: 'error', text: 'Erro ao excluir o board.' });
+        return;
+      }
       const remaining = boards.filter(b => b.id !== activeBoard.id);
       setBoards(remaining);
       if (remaining.length > 0) {
@@ -128,12 +139,17 @@ export default function KanbanBoard() {
       } else {
         await createDefaultBoardSilently();
       }
+      setBanner({ type: 'success', text: 'Board excluído.' });
     } catch (error) {
       console.error('Error deleting board:', error);
+      setBanner({ type: 'error', text: 'Erro inesperado ao excluir o board.' });
     }
   };
 
   const handleDragStart = (e: React.DragEvent, card: KanbanCard) => {
+    const meta = boards.find(b => b.id === activeBoard?.id);
+    const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+    if (!can('move_card')) return;
     setDraggedCard(card);
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -146,6 +162,12 @@ export default function KanbanBoard() {
   const handleDrop = async (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
     if (!draggedCard || !activeBoard) return;
+    const meta = boards.find(b => b.id === activeBoard.id);
+    const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+    if (!can('move_card')) {
+      setBanner({ type: 'info', text: 'Você não tem permissão para mover cards.' });
+      return;
+    }
 
     try {
       // Update in database
@@ -170,6 +192,7 @@ export default function KanbanBoard() {
       setBoards(boards.map(board => board.id === activeBoard.id ? updatedBoard : board));
     } catch (error) {
       console.error('Error moving card:', error);
+      setBanner({ type: 'error', text: 'Erro ao mover o card.' });
     } finally {
       setDraggedCard(null);
     }
@@ -177,6 +200,12 @@ export default function KanbanBoard() {
 
   const handleCreateCard = async () => {
     if (!newCard.title.trim() || !activeBoard) return;
+    const meta = boards.find(b => b.id === activeBoard.id);
+    const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+    if (!can('create_card')) {
+      setBanner({ type: 'info', text: 'Você não tem permissão para criar cards.' });
+      return;
+    }
 
     try {
       // Find the target column
@@ -197,6 +226,7 @@ export default function KanbanBoard() {
 
       if (error) {
         console.error('Error creating card:', error);
+        setBanner({ type: 'error', text: 'Erro ao criar card.' });
         return;
       }
 
@@ -226,8 +256,10 @@ export default function KanbanBoard() {
         dueDate: '',
         tags: []
       });
+      setBanner({ type: 'success', text: 'Card criado com sucesso.' });
     } catch (error) {
       console.error('Error creating card:', error);
+      setBanner({ type: 'error', text: 'Erro inesperado ao criar card.' });
     }
   };
 
@@ -246,6 +278,7 @@ export default function KanbanBoard() {
       setActiveBoard(boardData);
     } catch (error) {
       console.error('Error loading board:', error);
+      setBanner({ type: 'error', text: 'Erro ao carregar o board.' });
     }
   };
 
@@ -308,6 +341,7 @@ export default function KanbanBoard() {
           </button>
           <button
             onClick={handleRenameBoard}
+            disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_board}
             className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
             title="Renomear board"
           >
@@ -315,13 +349,22 @@ export default function KanbanBoard() {
           </button>
           <button
             onClick={handleDeleteBoard}
+            disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_board}
             className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
             title="Excluir board"
           >
             <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
           </button>
           <button
-            onClick={() => setShowShareModal(true)}
+            onClick={() => {
+              const meta = boards.find(b => b.id === activeBoard.id);
+              if (!meta?.permissions?.manage_board) {
+                setBanner({ type: 'info', text: 'Você não tem permissão para compartilhar este board.' });
+                return;
+              }
+              setShowShareModal(true);
+            }}
+            disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_board}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
             title="Compartilhar board"
           >
@@ -330,7 +373,18 @@ export default function KanbanBoard() {
           </button>
           <button
             onClick={() => {
-              setNewCardColumn('todo');
+              const meta = boards.find(b => b.id === activeBoard.id);
+              const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+              if (!can('create_card')) {
+                setBanner({ type: 'info', text: 'Você não tem permissão para criar cards.' });
+                return;
+              }
+              const firstColumnId = activeBoard.columns[0]?.id;
+              if (!firstColumnId) {
+                setBanner({ type: 'info', text: 'Nenhuma coluna disponível para adicionar card.' });
+                return;
+              }
+              setNewCardColumn(firstColumnId);
               setShowNewCardModal(true);
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
@@ -340,6 +394,15 @@ export default function KanbanBoard() {
           </button>
         </div>
       </div>
+
+      {banner && (
+        <div className={`mx-6 mt-3 rounded-md p-3 text-sm ${banner.type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100' : banner.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'}`}>
+          <div className="flex items-center justify-between">
+            <span>{banner.text}</span>
+            <button onClick={() => setBanner(null)} className="ml-4 text-xs opacity-70 hover:opacity-100">Fechar</button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 p-6 overflow-x-auto">
         <div className="flex space-x-6 h-full min-w-max">
@@ -358,9 +421,16 @@ export default function KanbanBoard() {
                   </span>
                   <button
                     onClick={() => {
+                      const meta = boards.find(b => b.id === activeBoard.id);
+                      const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+                      if (!can('create_card')) {
+                        setBanner({ type: 'info', text: 'Você não tem permissão para criar cards.' });
+                        return;
+                      }
                       setNewCardColumn(column.id);
                       setShowNewCardModal(true);
                     }}
+                    disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.create_card}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
                     title="Adicionar card"
                   >
@@ -373,7 +443,7 @@ export default function KanbanBoard() {
                 {column.cards.map(card => (
                   <div
                     key={card.id}
-                    draggable
+                    draggable={!!boards.find(b => b.id === activeBoard.id)?.permissions?.move_card}
                     onDragStart={(e) => handleDragStart(e, card)}
                     className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 cursor-move hover:shadow-md transition-shadow"
                   >

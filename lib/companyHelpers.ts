@@ -28,6 +28,17 @@ export interface SharedKanbanBoard {
   shared_at: string;
 }
 
+export interface BoardPermissions {
+  view_board: boolean;
+  manage_board: boolean;
+  manage_columns: boolean;
+  create_card: boolean;
+  edit_card: boolean;
+  move_card: boolean;
+  delete_card: boolean;
+  manage_members: boolean;
+}
+
 export const companyHelpers = {
   // Companies
   async getCompanies(userId: string): Promise<{ data: Company[] | null; error: any }> {
@@ -214,13 +225,19 @@ export const companyHelpers = {
   },
 
   // Shared Kanban Boards
-  async shareBoardWithCompany(boardId: string, companyId: string, userId: string): Promise<{ data: SharedKanbanBoard | null; error: any }> {
+  async shareBoardWithCompany(
+    boardId: string,
+    companyId: string,
+    userId: string,
+    permissions?: BoardPermissions
+  ): Promise<{ data: SharedKanbanBoard | null; error: any }> {
     const { data, error } = await supabase
       .from('shared_kanban_boards')
       .insert([{
         board_id: boardId,
         company_id: companyId,
-        shared_by: userId
+        shared_by: userId,
+        permissions: permissions ? permissions as any : undefined
       }])
       .select()
       .single();
@@ -243,6 +260,7 @@ export const companyHelpers = {
       .from('shared_kanban_boards')
       .select(`
         *,
+        permissions,
         kanban_boards!inner(*),
         companies!inner(name)
       `)
@@ -267,7 +285,16 @@ export const companyHelpers = {
       ...board,
       is_shared: false,
       company_name: null,
-      permissions: ['view', 'edit', 'create', 'delete']
+      permissions: {
+        view_board: true,
+        manage_board: true,
+        manage_columns: true,
+        create_card: true,
+        edit_card: true,
+        move_card: true,
+        delete_card: true,
+        manage_members: true
+      } as BoardPermissions
     })) || [];
 
     // Try to get shared boards. If shared tables are missing or error occurs,
@@ -277,6 +304,7 @@ export const companyHelpers = {
         .from('shared_kanban_boards')
         .select(`
           *,
+          permissions,
           kanban_boards!inner(*),
           companies!inner(name),
           company_members!inner(user_id, status)
@@ -294,7 +322,16 @@ export const companyHelpers = {
         ...share.kanban_boards,
         is_shared: true,
         company_name: share.companies.name,
-        permissions: ['view', 'edit', 'create', 'delete'] // Default permissions
+        permissions: (share as any).permissions ?? ({
+          view_board: true,
+          manage_board: false,
+          manage_columns: true,
+          create_card: true,
+          edit_card: true,
+          move_card: true,
+          delete_card: false,
+          manage_members: false
+        } as BoardPermissions)
       })) || [];
 
       const allBoards = [...ownBoardsFormatted, ...sharedBoardsFormatted];

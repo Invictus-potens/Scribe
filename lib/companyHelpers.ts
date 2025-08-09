@@ -149,11 +149,19 @@ export const companyHelpers = {
 
   async inviteUserToCompany(companyId: string, userEmail: string, role: 'admin' | 'member' = 'member'): Promise<{ success: boolean; message: string }> {
     const { data, error } = await supabase.rpc('invite_user_to_company', {
-      company_id: companyId,
-      user_email: userEmail,
-      role
+      p_company_id: companyId,
+      p_user_email: userEmail,
+      p_role: role
     });
-    if (error) return { success: false, message: 'Failed to invite user' };
+    if (error) {
+      // Log completo para debug no console e retornar motivo legível
+      // @ts-expect-error supabase error can have details/hint/Code
+      const details = error.details || error.hint || '';
+      const code = (error as any).code ? ` [${(error as any).code}]` : '';
+      const message = `${error.message || 'Failed to invite user'}${code}${details ? `: ${details}` : ''}`;
+      console.error('invite_user_to_company RPC error:', { error });
+      return { success: false, message };
+    }
     const result = Array.isArray(data) ? data[0] : data;
     return { success: !!result?.success, message: result?.message || '' };
   },
@@ -193,14 +201,30 @@ export const companyHelpers = {
     userId: string,
     permissions?: BoardPermissions
   ): Promise<{ data: SharedKanbanBoard | null; error: any }> {
+    // Upsert para evitar violar unique(board_id, company_id)
+    const insertPayload: any = {
+      board_id: boardId,
+      company_id: companyId,
+      shared_by: userId,
+      ...(permissions ? { permissions } : {})
+    };
+
+    // Tenta update primeiro; se não existir, faz insert
+    const { data: updated, error: updateError } = await supabase
+      .from('shared_kanban_boards')
+      .update({ permissions: permissions as any, shared_by: userId })
+      .eq('board_id', boardId)
+      .eq('company_id', companyId)
+      .select()
+      .maybeSingle();
+
+    if (!updateError && updated) {
+      return { data: updated as any, error: null };
+    }
+
     const { data, error } = await supabase
       .from('shared_kanban_boards')
-      .insert([{
-        board_id: boardId,
-        company_id: companyId,
-        shared_by: userId,
-        permissions: permissions ? permissions as any : undefined
-      }])
+      .insert([insertPayload])
       .select()
       .single();
 

@@ -42,7 +42,14 @@ export default function KanbanBoard() {
 
         // Load user's accessible boards (own + shared via companies)
         const { data: accessibleBoards } = await companyHelpers.getUserAccessibleBoards();
-        setBoards(accessibleBoards || []);
+        const list = accessibleBoards || [];
+        const seen = new Set<string>();
+        const unique = list.filter(b => {
+          if (seen.has(b.id)) return false;
+          seen.add(b.id);
+          return true;
+        });
+        setBoards(unique);
 
         // Set first board as active if available
         if (accessibleBoards && accessibleBoards.length > 0) {
@@ -92,7 +99,7 @@ export default function KanbanBoard() {
           delete_card: true,
           manage_members: true
         }
-      }, ...prev]);
+      }, ...prev.filter(b => b.id !== createdBoard.id)]);
       setActiveBoard(boardData);
     } catch (error) {
       console.error('Error creating board:', error);
@@ -124,7 +131,7 @@ export default function KanbanBoard() {
         delete_card: true,
         manage_members: true
       }
-    }, ...prev]);
+    }, ...prev.filter(b => b.id !== createdBoard.id)]);
     setActiveBoard(boardData);
     return createdBoard;
   };

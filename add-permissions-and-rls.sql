@@ -190,9 +190,9 @@ $$;
 -- 6.2 convidar usuário com validações (não convidar a si mesmo, evitar duplicatas/pending)
 drop function if exists public.invite_user_to_company(uuid, text, text);
 create or replace function public.invite_user_to_company(
-  company_id uuid,
-  user_email text,
-  role text default 'member'
+  p_company_id uuid,
+  p_user_email text,
+  p_role text default 'member'
 )
 returns table (success boolean, message text)
 language plpgsql
@@ -212,7 +212,7 @@ begin
   -- somente owner/admin da empresa pode convidar
   select exists (
     select 1 from public.company_members cm1
-    where cm1.company_id = company_id
+    where cm1.company_id = p_company_id
       and cm1.user_id = auth.uid()
       and cm1.status = 'accepted'
       and cm1.role in ('owner','admin')
@@ -224,9 +224,9 @@ begin
   end if;
 
   -- localizar usuário por email (tenta em profiles e auth.users)
-  select id from public.users where email = user_email limit 1 into v_target_user_id;
+  select id from public.users where email = p_user_email limit 1 into v_target_user_id;
   if v_target_user_id is null then
-    select id from auth.users where email = user_email limit 1 into v_target_user_id;
+    select id from auth.users where email = p_user_email limit 1 into v_target_user_id;
   end if;
 
   if v_target_user_id is null then
@@ -242,7 +242,7 @@ begin
   -- já é membro?
   select exists (
     select 1 from public.company_members cm2
-    where cm2.company_id = company_id and cm2.user_id = v_target_user_id and cm2.status = 'accepted'
+    where cm2.company_id = p_company_id and cm2.user_id = v_target_user_id and cm2.status = 'accepted'
   ) into v_is_member;
   if v_is_member then
     return query select false, 'User is already a member of this company';
@@ -252,22 +252,36 @@ begin
   -- convite pendente?
   select exists (
     select 1 from public.company_members cm3
-    where cm3.company_id = company_id and cm3.user_id = v_target_user_id and cm3.status = 'pending'
+    where cm3.company_id = p_company_id and cm3.user_id = v_target_user_id and cm3.status = 'pending'
   ) into v_has_pending;
   if v_has_pending then
     return query select false, 'An invitation is already pending for this user';
     return;
   end if;
 
-  insert into public.company_members (company_id, user_id, role, status, invited_by, invited_at)
-  values (
-    company_id,
-    v_target_user_id,
-    (case when coalesce(role,'member') in ('owner','admin','member') then coalesce(role,'member') else 'member' end)::public.company_members_role,
-    'pending',
-    auth.uid(),
-    now()
-  );
+  -- tentar reaproveitar registro antigo (ex.: declined) atualizando para pending
+  if exists (
+    select 1 from public.company_members cm4
+    where cm4.company_id = p_company_id and cm4.user_id = v_target_user_id
+  ) then
+    update public.company_members cmu
+      set role = (case when coalesce(p_role,'member') in ('owner','admin','member') then coalesce(p_role,'member') else 'member' end),
+          status = 'pending',
+          invited_by = auth.uid(),
+          invited_at = now(),
+          joined_at = null
+    where cmu.company_id = p_company_id and cmu.user_id = v_target_user_id;
+  else
+    insert into public.company_members (company_id, user_id, role, status, invited_by, invited_at)
+    values (
+      p_company_id,
+      v_target_user_id,
+      case when coalesce(p_role,'member') in ('owner','admin','member') then coalesce(p_role,'member') else 'member' end,
+      'pending',
+      auth.uid(),
+      now()
+    );
+  end if;
 
   return query select true, 'User invited successfully';
 end;
@@ -316,7 +330,7 @@ begin
   end if;
 
   update public.company_members
-    set role = (case when coalesce(p_new_role,'member') in ('owner','admin','member') then coalesce(p_new_role,'member') else 'member' end)::public.company_members_role
+    set role = (case when coalesce(p_new_role,'member') in ('owner','admin','member') then coalesce(p_new_role,'member') else 'member' end)
   where company_id = p_company_id and user_id = p_target_user_id;
 
   return query select true, 'Role updated';
@@ -338,44 +352,52 @@ language sql
 security definer
 stable
 as $$
-  -- próprios
-  select b.id, b.title, b.created_at, b.updated_at,
-         false as is_shared,
-         null::text as company_name,
-         '{
-           "view_board": true,
-           "manage_board": true,
-           "manage_columns": true,
-           "create_card": true,
-           "edit_card": true,
-           "move_card": true,
-           "delete_card": true,
-           "manage_members": true
-         }'::jsonb as permissions
-  from public.kanban_boards b
-  where b.user_id = auth.uid()
+  with combined as (
+    -- próprios
+    select b.id, b.title, b.created_at, b.updated_at,
+           false as is_shared,
+           null::text as company_name,
+           '{
+             "view_board": true,
+             "manage_board": true,
+             "manage_columns": true,
+             "create_card": true,
+             "edit_card": true,
+             "move_card": true,
+             "delete_card": true,
+             "manage_members": true
+           }'::jsonb as permissions
+    from public.kanban_boards b
+    where b.user_id = auth.uid()
 
-  union all
+    union all
 
-  -- compartilhados via empresa em que o usuário é membro aceito
-  select kb.id, kb.title, kb.created_at, kb.updated_at,
-         true as is_shared,
-         c.name as company_name,
-         coalesce(skb.permissions, '{
-           "view_board": true,
-           "manage_board": false,
-           "manage_columns": true,
-           "create_card": true,
-           "edit_card": true,
-           "move_card": true,
-           "delete_card": false,
-           "manage_members": false
-         }'::jsonb) as permissions
-  from public.shared_kanban_boards skb
-  join public.kanban_boards kb on kb.id = skb.board_id
-  join public.companies c on c.id = skb.company_id
-  join public.company_members cm on cm.company_id = skb.company_id
-  where cm.user_id = auth.uid() and cm.status = 'accepted'
+    -- compartilhados via empresa em que o usuário é membro aceito
+    select kb.id, kb.title, kb.created_at, kb.updated_at,
+           true as is_shared,
+           c.name as company_name,
+           coalesce(skb.permissions, '{
+             "view_board": true,
+             "manage_board": false,
+             "manage_columns": true,
+             "create_card": true,
+             "edit_card": true,
+             "move_card": true,
+             "delete_card": false,
+             "manage_members": false
+           }'::jsonb) as permissions
+    from public.shared_kanban_boards skb
+    join public.kanban_boards kb on kb.id = skb.board_id
+    join public.companies c on c.id = skb.company_id
+    join public.company_members cm on cm.company_id = skb.company_id
+    where cm.user_id = auth.uid() and cm.status = 'accepted'
+  )
+  select *
+  from (
+    select distinct on (id) *
+    from combined
+    order by id, is_shared asc, created_at desc
+  ) dedup
   order by created_at desc;
 $$;
 

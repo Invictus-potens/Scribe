@@ -114,7 +114,9 @@ export default function CompanyManager() {
       }
     } catch (error) {
       console.error('Error inviting user:', error);
-      setBanner({ type: 'error', text: 'Erro ao convidar usuário.' });
+      // mostrar detalhes se existirem
+      const errMsg = (error as any)?.message || 'Erro ao convidar usuário.';
+      setBanner({ type: 'error', text: errMsg });
     }
   };
 

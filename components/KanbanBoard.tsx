@@ -266,7 +266,7 @@ export default function KanbanBoard() {
       await kanbanHelpers.moveCard(draggedCard.id, targetColumnId, targetIndex);
 
       // Atualização otimista
-      let newColumns = activeBoard.columns.map(c => ({ ...c, cards: [...c.cards] }));
+      const newColumns = activeBoard.columns.map(c => ({ ...c, cards: [...c.cards] }));
       // remover do original
       const origin = newColumns.find(c => c.id === originColumnId)!;
       origin.cards = origin.cards.filter(c => c.id !== draggedCard.id).map((c, i) => ({ ...c, order_index: i }));
@@ -504,7 +504,7 @@ export default function KanbanBoard() {
         realtimeRef.current = null;
       }
     };
-  }, [activeBoard?.id, JSON.stringify((activeBoard?.columns || []).map(c => c.id)), currentUser?.id]);
+  }, [activeBoard, currentUser]);
 
   if (loading) {
     return (

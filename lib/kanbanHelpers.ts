@@ -216,7 +216,7 @@ export const kanbanHelpers = {
 
     // Get all cards in a single query and group by column
     const columnIds = (columns || []).map(c => c.id);
-    let cardsByColumn: Record<string, KanbanCard[]> = {};
+    const cardsByColumn: Record<string, KanbanCard[]> = {};
     if (columnIds.length > 0) {
       const { data: allCards, error: cardsError } = await supabase
         .from('kanban_cards')

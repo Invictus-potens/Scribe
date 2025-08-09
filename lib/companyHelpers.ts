@@ -39,6 +39,16 @@ export interface BoardPermissions {
   manage_members: boolean;
 }
 
+export interface AccessibleBoardMeta {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  is_shared: boolean;
+  company_name: string | null;
+  permissions: BoardPermissions;
+}
+
 export const companyHelpers = {
   // Companies
   async getCompanies(userId: string): Promise<{ data: Company[] | null; error: any }> {
@@ -78,26 +88,13 @@ export const companyHelpers = {
   },
 
   async createCompany(userId: string, name: string, description?: string): Promise<{ data: Company | null; error: any }> {
+    // userId is inferred from auth context on the RPC
     const { data, error } = await supabase
-      .from('companies')
-      .insert([{ owner_id: userId, name, description }])
-      .select()
-      .single();
-
-    if (data && !error) {
-      // Add owner as member
-      await supabase
-        .from('company_members')
-        .insert([{
-          company_id: data.id,
-          user_id: userId,
-          role: 'owner',
-          status: 'accepted',
-          joined_at: new Date().toISOString()
-        }]);
-    }
-
-    return { data, error };
+      .rpc('create_company_with_owner', {
+        p_name: name,
+        p_description: description ?? null
+      });
+    return { data: (data as Company) ?? null, error };
   },
 
   async updateCompany(companyId: string, name: string, description?: string): Promise<{ data: Company | null; error: any }> {
@@ -137,66 +134,31 @@ export const companyHelpers = {
     userId: string,
     role: 'owner' | 'admin' | 'member'
   ): Promise<{ error: any }> {
-    const { error } = await supabase
-      .from('company_members')
-      .update({ role })
-      .eq('company_id', companyId)
-      .eq('user_id', userId);
-    return { error };
+    const { data, error } = await supabase.rpc('update_company_member_role', {
+      p_company_id: companyId,
+      p_target_user_id: userId,
+      p_new_role: role
+    });
+    if (error) return { error };
+    const result = Array.isArray(data) ? data[0] : data;
+    if (!result?.success) {
+      return { error: { message: result?.message || 'Failed to update role' } };
+    }
+    return { error: null };
   },
 
   async inviteUserToCompany(companyId: string, userEmail: string, role: 'admin' | 'member' = 'member'): Promise<{ success: boolean; message: string }> {
-    // First, try to find the user by email in public.users (profile table)
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', userEmail)
-      .maybeSingle();
-    let user = userData as { id: string } | null;
-
-    // If not found (common when the profile wasn't created yet), try RPC that reads by email
-    if ((!user || userError) && !user) {
-      const { data: rpcUser, error: rpcError } = await supabase
-        .rpc('get_user_by_email', { user_email: userEmail });
-      if (!rpcError && rpcUser && Array.isArray(rpcUser) && rpcUser.length > 0) {
-        user = { id: rpcUser[0].id } as any;
-      }
-    }
-
-    if (!user) {
-      return { success: false, message: 'User not found with this email' };
-    }
-
-    // Check if user is already a member (no joins)
-    const { data: existingMember } = await supabase
-      .from('company_members')
-      .select('id')
-      .eq('company_id', companyId)
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (existingMember) {
-      return { success: false, message: 'User is already a member of this company' };
-    }
-
-    // Add user to company (owner is enforced by RLS policy)
-    const { error } = await supabase
-      .from('company_members')
-      .insert([{
-        company_id: companyId,
-        user_id: user.id,
-        role,
-        status: 'pending'
-      }]);
-
-    if (error) {
-      return { success: false, message: 'Failed to invite user' };
-    }
-
-    return { success: true, message: 'User invited successfully' };
+    const { data, error } = await supabase.rpc('invite_user_to_company', {
+      company_id: companyId,
+      user_email: userEmail,
+      role
+    });
+    if (error) return { success: false, message: 'Failed to invite user' };
+    const result = Array.isArray(data) ? data[0] : data;
+    return { success: !!result?.success, message: result?.message || '' };
   },
 
-  async acceptInvitation(companyId: string, userId: string): Promise<{ error: any }> {
+  async acceptInvitation(companyId: string, _userId: string): Promise<{ error: any }> {
     // Prefer RPC to satisfy RLS safely: only invited user can accept own invite
     const { error } = await supabase.rpc('accept_company_invitation', {
       p_company_id: companyId
@@ -205,7 +167,7 @@ export const companyHelpers = {
     return { error };
   },
 
-  async declineInvitation(companyId: string, userId: string): Promise<{ error: any }> {
+  async declineInvitation(companyId: string, _userId: string): Promise<{ error: any }> {
     // Prefer RPC to satisfy RLS safely: only invited user can decline own invite
     const { error } = await supabase.rpc('decline_company_invitation', {
       p_company_id: companyId
@@ -271,75 +233,19 @@ export const companyHelpers = {
   },
 
   // Get user's accessible boards (own + shared)
-  async getUserAccessibleBoards(userId: string): Promise<{ data: any[] | null; error: any }> {
-    // Get user's own boards
-    const { data: ownBoards, error: ownError } = await supabase
-      .from('kanban_boards')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (ownError) return { data: null, error: ownError };
-
-    const ownBoardsFormatted = ownBoards?.map(board => ({
-      ...board,
-      is_shared: false,
-      company_name: null,
-      permissions: {
-        view_board: true,
-        manage_board: true,
-        manage_columns: true,
-        create_card: true,
-        edit_card: true,
-        move_card: true,
-        delete_card: true,
-        manage_members: true
-      } as BoardPermissions
-    })) || [];
-
-    // Try to get shared boards. If shared tables are missing or error occurs,
-    // fall back to returning only the user's own boards so the app keeps working.
-    try {
-      const { data: sharedBoards, error: sharedError } = await supabase
-        .from('shared_kanban_boards')
-        .select(`
-          *,
-          permissions,
-          kanban_boards!inner(*),
-          companies!inner(name),
-          company_members!inner(user_id, status)
-        `)
-        .eq('company_members.user_id', userId)
-        .eq('company_members.status', 'accepted')
-        .order('shared_at', { ascending: false });
-
-      if (sharedError) {
-        // Graceful degrade: no shared boards available
-        return { data: ownBoardsFormatted, error: null };
-      }
-
-      const sharedBoardsFormatted = sharedBoards?.map(share => ({
-        ...share.kanban_boards,
-        is_shared: true,
-        company_name: share.companies.name,
-        permissions: (share as any).permissions ?? ({
-          view_board: true,
-          manage_board: false,
-          manage_columns: true,
-          create_card: true,
-          edit_card: true,
-          move_card: true,
-          delete_card: false,
-          manage_members: false
-        } as BoardPermissions)
-      })) || [];
-
-      const allBoards = [...ownBoardsFormatted, ...sharedBoardsFormatted];
-      return { data: allBoards, error: null };
-    } catch {
-      // If the shared tables don't exist or any other runtime error occurs,
-      // return only own boards.
-      return { data: ownBoardsFormatted, error: null };
-    }
+  async getUserAccessibleBoards(): Promise<{ data: AccessibleBoardMeta[] | null; error: any }> {
+    const { data, error } = await supabase.rpc('get_user_accessible_boards');
+    if (error) return { data: null, error };
+    // Supabase might return snake_case keys as-is; cast to our interface
+    const boards = (data as any[]).map((row) => ({
+      id: row.id,
+      title: row.title,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      is_shared: row.is_shared,
+      company_name: row.company_name ?? null,
+      permissions: row.permissions as BoardPermissions
+    })) as AccessibleBoardMeta[];
+    return { data: boards, error: null };
   }
 }; 

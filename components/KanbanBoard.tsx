@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { kanbanHelpers, KanbanBoardWithData, KanbanCard } from '../lib/kanbanHelpers';
-import { companyHelpers, type BoardPermissions } from '../lib/companyHelpers';
+import { companyHelpers, type BoardPermissions, type AccessibleBoardMeta } from '../lib/companyHelpers';
 import ConfirmDialog from './ConfirmDialog';
 import { useToast } from './ToastProvider';
 import { authHelpers } from '../lib/supabase';
 import ShareBoardModal from './ShareBoardModal';
 
 export default function KanbanBoard() {
-  const [boards, setBoards] = useState<any[]>([]);
+  const [boards, setBoards] = useState<AccessibleBoardMeta[]>([]);
   const [activeBoard, setActiveBoard] = useState<KanbanBoardWithData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -26,7 +26,7 @@ export default function KanbanBoard() {
     tags: [] as string[]
   });
   const [showShareModal, setShowShareModal] = useState(false);
-  const [banner, setBanner] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
+  const [_banner, setBanner] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [confirmDeleteLoading, setConfirmDeleteLoading] = useState(false);
   const toast = useToast();
@@ -41,7 +41,7 @@ export default function KanbanBoard() {
         setCurrentUser(user);
 
         // Load user's accessible boards (own + shared via companies)
-        const { data: accessibleBoards } = await companyHelpers.getUserAccessibleBoards(user.id);
+        const { data: accessibleBoards } = await companyHelpers.getUserAccessibleBoards();
         setBoards(accessibleBoards || []);
 
         // Set first board as active if available
@@ -75,7 +75,24 @@ export default function KanbanBoard() {
 
       // Carregar board completo e atualizar estado
       const { data: boardData } = await kanbanHelpers.getBoardWithData(createdBoard.id);
-      setBoards(prev => [{ ...createdBoard, is_shared: false, company_name: null }, ...prev]);
+      setBoards(prev => [{
+        id: createdBoard.id,
+        title: createdBoard.title,
+        created_at: createdBoard.created_at,
+        updated_at: createdBoard.updated_at,
+        is_shared: false,
+        company_name: null,
+        permissions: {
+          view_board: true,
+          manage_board: true,
+          manage_columns: true,
+          create_card: true,
+          edit_card: true,
+          move_card: true,
+          delete_card: true,
+          manage_members: true
+        }
+      }, ...prev]);
       setActiveBoard(boardData);
     } catch (error) {
       console.error('Error creating board:', error);
@@ -90,7 +107,24 @@ export default function KanbanBoard() {
     await kanbanHelpers.createColumn(createdBoard.id, 'In Progress', 1);
     await kanbanHelpers.createColumn(createdBoard.id, 'Done', 2);
     const { data: boardData } = await kanbanHelpers.getBoardWithData(createdBoard.id);
-    setBoards(prev => [{ ...createdBoard, is_shared: false, company_name: null }, ...prev]);
+    setBoards(prev => [{
+      id: createdBoard.id,
+      title: createdBoard.title,
+      created_at: createdBoard.created_at,
+      updated_at: createdBoard.updated_at,
+      is_shared: false,
+      company_name: null,
+      permissions: {
+        view_board: true,
+        manage_board: true,
+        manage_columns: true,
+        create_card: true,
+        edit_card: true,
+        move_card: true,
+        delete_card: true,
+        manage_members: true
+      }
+    }, ...prev]);
     setActiveBoard(boardData);
     return createdBoard;
   };
@@ -298,6 +332,14 @@ export default function KanbanBoard() {
     }
   };
 
+  // ESC para fechar modal de novo card (hook deve ser chamado sempre, sem retornar antes)
+  useEffect(() => {
+    if (!showNewCardModal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowNewCardModal(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showNewCardModal]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -328,14 +370,6 @@ export default function KanbanBoard() {
       </div>
     );
   }
-
-  // ESC para fechar modal de novo card
-  useEffect(() => {
-    if (!showNewCardModal) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowNewCardModal(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [showNewCardModal]);
 
   return (
     <div className="h-full flex flex-col">

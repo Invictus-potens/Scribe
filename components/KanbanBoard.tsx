@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { kanbanHelpers, KanbanBoardWithData, KanbanCard } from '../lib/kanbanHelpers';
 import { companyHelpers, type BoardPermissions } from '../lib/companyHelpers';
+import ConfirmDialog from './ConfirmDialog';
+import { useToast } from './ToastProvider';
 import { authHelpers } from '../lib/supabase';
 import ShareBoardModal from './ShareBoardModal';
 
@@ -12,6 +14,7 @@ export default function KanbanBoard() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [showNewCardModal, setShowNewCardModal] = useState(false);
+  const [creatingCard, setCreatingCard] = useState(false);
   const [newCardColumn, setNewCardColumn] = useState('');
   const [draggedCard, setDraggedCard] = useState<KanbanCard | null>(null);
   const [newCard, setNewCard] = useState({
@@ -24,6 +27,9 @@ export default function KanbanBoard() {
   });
   const [showShareModal, setShowShareModal] = useState(false);
   const [banner, setBanner] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmDeleteLoading, setConfirmDeleteLoading] = useState(false);
+  const toast = useToast();
 
   // Load data on component mount
   useEffect(() => {
@@ -95,39 +101,43 @@ export default function KanbanBoard() {
       const meta = boards.find(b => b.id === activeBoard.id);
       const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
       if (!can('manage_board')) {
-        setBanner({ type: 'info', text: 'Você não tem permissão para renomear este board.' });
+        toast.info('Você não tem permissão para renomear este board.');
         return;
       }
       const newTitle = typeof window !== 'undefined' ? window.prompt('Novo nome do board', activeBoard.title) : activeBoard.title;
       if (!newTitle || newTitle.trim() === '' || newTitle === activeBoard.title) return;
       const { data, error } = await kanbanHelpers.updateBoard(activeBoard.id, newTitle.trim());
       if (error || !data) {
-        setBanner({ type: 'error', text: 'Erro ao renomear o board.' });
+        toast.error('Erro ao renomear o board.');
         return;
       }
       setBoards(prev => prev.map(b => (b.id === data.id ? { ...b, title: data.title } : b)));
       setActiveBoard({ ...activeBoard, title: data.title });
-      setBanner({ type: 'success', text: 'Board renomeado com sucesso.' });
+      toast.success('Board renomeado com sucesso.');
     } catch (error) {
       console.error('Error renaming board:', error);
-      setBanner({ type: 'error', text: 'Erro inesperado ao renomear o board.' });
+      toast.error('Erro inesperado ao renomear o board.');
     }
   };
 
-  const handleDeleteBoard = async () => {
+  const handleDeleteBoard = () => {
+    if (!activeBoard) return;
+    const meta = boards.find(b => b.id === activeBoard.id);
+    const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+    if (!can('manage_board')) {
+      toast.info('Você não tem permissão para excluir este board.');
+      return;
+    }
+    setConfirmDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
     try {
       if (!activeBoard) return;
-      const meta = boards.find(b => b.id === activeBoard.id);
-      const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
-      if (!can('manage_board')) {
-        setBanner({ type: 'info', text: 'Você não tem permissão para excluir este board.' });
-        return;
-      }
-      const confirmed = typeof window !== 'undefined' ? window.confirm('Excluir este board? Esta ação não pode ser desfeita.') : false;
-      if (!confirmed) return;
+      setConfirmDeleteLoading(true);
       const { error } = await kanbanHelpers.deleteBoard(activeBoard.id);
       if (error) {
-        setBanner({ type: 'error', text: 'Erro ao excluir o board.' });
+        toast.error('Erro ao excluir o board.');
         return;
       }
       const remaining = boards.filter(b => b.id !== activeBoard.id);
@@ -139,10 +149,13 @@ export default function KanbanBoard() {
       } else {
         await createDefaultBoardSilently();
       }
-      setBanner({ type: 'success', text: 'Board excluído.' });
+      toast.success('Board excluído.');
     } catch (error) {
       console.error('Error deleting board:', error);
-      setBanner({ type: 'error', text: 'Erro inesperado ao excluir o board.' });
+      toast.error('Erro inesperado ao excluir o board.');
+    } finally {
+      setConfirmDeleteLoading(false);
+      setConfirmDeleteOpen(false);
     }
   };
 
@@ -165,7 +178,7 @@ export default function KanbanBoard() {
     const meta = boards.find(b => b.id === activeBoard.id);
     const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
     if (!can('move_card')) {
-      setBanner({ type: 'info', text: 'Você não tem permissão para mover cards.' });
+      toast.info('Você não tem permissão para mover cards.');
       return;
     }
 
@@ -192,7 +205,7 @@ export default function KanbanBoard() {
       setBoards(boards.map(board => board.id === activeBoard.id ? updatedBoard : board));
     } catch (error) {
       console.error('Error moving card:', error);
-      setBanner({ type: 'error', text: 'Erro ao mover o card.' });
+      toast.error('Erro ao mover o card.');
     } finally {
       setDraggedCard(null);
     }
@@ -203,11 +216,12 @@ export default function KanbanBoard() {
     const meta = boards.find(b => b.id === activeBoard.id);
     const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
     if (!can('create_card')) {
-      setBanner({ type: 'info', text: 'Você não tem permissão para criar cards.' });
+      toast.info('Você não tem permissão para criar cards.');
       return;
     }
 
     try {
+      setCreatingCard(true);
       // Find the target column
       const targetColumn = activeBoard.columns.find(col => col.id === newCardColumn);
       if (!targetColumn) return;
@@ -226,7 +240,7 @@ export default function KanbanBoard() {
 
       if (error) {
         console.error('Error creating card:', error);
-        setBanner({ type: 'error', text: 'Erro ao criar card.' });
+        toast.error('Erro ao criar card.');
         return;
       }
 
@@ -256,10 +270,12 @@ export default function KanbanBoard() {
         dueDate: '',
         tags: []
       });
-      setBanner({ type: 'success', text: 'Card criado com sucesso.' });
+      toast.success('Card criado com sucesso.');
     } catch (error) {
       console.error('Error creating card:', error);
-      setBanner({ type: 'error', text: 'Erro inesperado ao criar card.' });
+      toast.error('Erro inesperado ao criar card.');
+    } finally {
+      setCreatingCard(false);
     }
   };
 
@@ -278,7 +294,7 @@ export default function KanbanBoard() {
       setActiveBoard(boardData);
     } catch (error) {
       console.error('Error loading board:', error);
-      setBanner({ type: 'error', text: 'Erro ao carregar o board.' });
+      toast.error('Erro ao carregar o board.');
     }
   };
 
@@ -312,6 +328,14 @@ export default function KanbanBoard() {
       </div>
     );
   }
+
+  // ESC para fechar modal de novo card
+  useEffect(() => {
+    if (!showNewCardModal) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowNewCardModal(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showNewCardModal]);
 
   return (
     <div className="h-full flex flex-col">
@@ -395,14 +419,7 @@ export default function KanbanBoard() {
         </div>
       </div>
 
-      {banner && (
-        <div className={`mx-6 mt-3 rounded-md p-3 text-sm ${banner.type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100' : banner.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'}`}>
-          <div className="flex items-center justify-between">
-            <span>{banner.text}</span>
-            <button onClick={() => setBanner(null)} className="ml-4 text-xs opacity-70 hover:opacity-100">Fechar</button>
-          </div>
-        </div>
-      )}
+      {/* toasts substituem o banner local */}
 
       <div className="flex-1 p-6 overflow-x-auto">
         <div className="flex space-x-6 h-full min-w-max">
@@ -553,9 +570,10 @@ export default function KanbanBoard() {
               </button>
               <button
                 onClick={handleCreateCard}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors whitespace-nowrap"
+                disabled={creatingCard}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors whitespace-nowrap"
               >
-                Create Card
+                {creatingCard ? 'Creating...' : 'Create Card'}
               </button>
             </div>
           </div>
@@ -568,6 +586,16 @@ export default function KanbanBoard() {
         boardTitle={activeBoard.title}
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDeleteOpen}
+        title="Excluir board"
+        description="Esta ação não pode ser desfeita. Deseja excluir o board?"
+        confirmText="Excluir"
+        loading={confirmDeleteLoading}
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmDeleteOpen(false)}
       />
     </div>
   );

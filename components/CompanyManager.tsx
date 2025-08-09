@@ -11,6 +11,7 @@ export default function CompanyManager() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [showMembersModal, setShowMembersModal] = useState(false);
   const [companyMembers, setCompanyMembers] = useState<CompanyMember[]>([]);
   const [memberOps, setMemberOps] = useState<Record<string, 'role' | 'remove' | null>>({});
   const [showEditCompanyModal, setShowEditCompanyModal] = useState(false);
@@ -26,6 +27,20 @@ export default function CompanyManager() {
     role: 'member' as 'admin' | 'member'
   });
   const [banner, setBanner] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!showCreateModal && !showInviteModal && !showEditCompanyModal && !showMembersModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowCreateModal(false);
+        setShowInviteModal(false);
+        setShowEditCompanyModal(false);
+        setShowMembersModal(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showCreateModal, showInviteModal, showEditCompanyModal, showMembersModal]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -65,7 +80,7 @@ export default function CompanyManager() {
 
       // Verificar se data não é null antes de adicionar ao array
       if (data) {
-        setCompanies(prev => [data, ...prev]);
+        setCompanies((prev: Company[]) => [data, ...prev]);
         setShowCreateModal(false);
         setNewCompany({ name: '', description: '' });
         setBanner({ type: 'success', text: 'Empresa criada com sucesso.' });
@@ -105,11 +120,13 @@ export default function CompanyManager() {
 
   const handleViewMembers = async (company: Company) => {
     setSelectedCompany(company);
+    setShowInviteModal(false);
     // Prepare edit form with current company values
     setEditCompany({ name: company.name, description: company.description || '' });
     try {
       const { data: members } = await companyHelpers.getCompanyMembers(company.id);
       setCompanyMembers(members || []);
+      setShowMembersModal(true);
     } catch (error) {
       console.error('Error loading members:', error);
       setBanner({ type: 'error', text: 'Erro ao carregar membros.' });
@@ -117,7 +134,7 @@ export default function CompanyManager() {
   };
 
   const currentUserRole = selectedCompany
-    ? companyMembers.find(m => m.user_id === currentUser?.id)?.role
+    ? companyMembers.find((m: CompanyMember) => m.user_id === currentUser?.id)?.role
     : undefined;
 
   const canManageMembers = currentUserRole === 'owner' || currentUserRole === 'admin';
@@ -125,32 +142,32 @@ export default function CompanyManager() {
   const handleChangeMemberRole = async (member: CompanyMember, role: 'admin' | 'member') => {
     if (!selectedCompany || !canManageMembers) return;
     if (member.role === 'owner') return;
-    setMemberOps(prev => ({ ...prev, [member.id]: 'role' }));
+    setMemberOps((prev: Record<string, 'role' | 'remove' | null>) => ({ ...prev, [member.id]: 'role' }));
     try {
       const { error } = await companyHelpers.updateMemberRole(selectedCompany.id, member.user_id, role);
       if (error) throw error;
-      setCompanyMembers(prev => prev.map(m => m.id === member.id ? { ...m, role } : m));
+      setCompanyMembers((prev: CompanyMember[]) => prev.map((m: CompanyMember) => m.id === member.id ? { ...m, role } : m));
     } catch (e) {
       console.error('Erro ao alterar função do membro', e);
       setBanner({ type: 'error', text: 'Erro ao alterar função do membro.' });
     } finally {
-      setMemberOps(prev => ({ ...prev, [member.id]: null }));
+      setMemberOps((prev: Record<string, 'role' | 'remove' | null>) => ({ ...prev, [member.id]: null }));
     }
   };
 
   const handleRemoveMember = async (member: CompanyMember) => {
     if (!selectedCompany || !canManageMembers) return;
     if (member.role === 'owner') return;
-    setMemberOps(prev => ({ ...prev, [member.id]: 'remove' }));
+    setMemberOps((prev: Record<string, 'role' | 'remove' | null>) => ({ ...prev, [member.id]: 'remove' }));
     try {
       const { error } = await companyHelpers.removeMember(selectedCompany.id, member.user_id);
       if (error) throw error;
-      setCompanyMembers(prev => prev.filter(m => m.id !== member.id));
+      setCompanyMembers((prev: CompanyMember[]) => prev.filter((m: CompanyMember) => m.id !== member.id));
     } catch (e) {
       console.error('Erro ao remover membro', e);
       setBanner({ type: 'error', text: 'Erro ao remover membro.' });
     } finally {
-      setMemberOps(prev => ({ ...prev, [member.id]: null }));
+      setMemberOps((prev: Record<string, 'role' | 'remove' | null>) => ({ ...prev, [member.id]: null }));
     }
   };
 
@@ -164,7 +181,7 @@ export default function CompanyManager() {
       const { data, error } = await companyHelpers.updateCompany(selectedCompany.id, newName, newDesc);
       if (error) return;
       if (data) {
-        setCompanies(prev => prev.map(c => (c.id === data.id ? { ...c, name: data.name, description: data.description } : c)));
+        setCompanies((prev: Company[]) => prev.map((c: Company) => (c.id === data.id ? { ...c, name: data.name, description: data.description } : c)));
         setSelectedCompany({ ...selectedCompany, name: data.name, description: data.description } as Company);
         setShowEditCompanyModal(false);
       }
@@ -211,7 +228,7 @@ export default function CompanyManager() {
 
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {companies.map(company => (
+          {companies.map((company: Company) => (
             <div key={company.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -231,6 +248,7 @@ export default function CompanyManager() {
                   <button
                     onClick={() => {
                       setSelectedCompany(company);
+                      setShowMembersModal(false);
                       setShowInviteModal(true);
                     }}
                     className="p-2 text-blue-500 hover:text-blue-700 transition-colors"
@@ -358,7 +376,7 @@ export default function CompanyManager() {
       )}
 
       {/* Company Members Modal */}
-      {selectedCompany && (
+      {showMembersModal && selectedCompany && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
@@ -376,7 +394,7 @@ export default function CompanyManager() {
                   </button>
                 )}
                 <button
-                  onClick={() => setSelectedCompany(null)}
+                  onClick={() => setShowMembersModal(false)}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                   title="Fechar"
                 >
@@ -386,7 +404,7 @@ export default function CompanyManager() {
             </div>
 
             <div className="space-y-3">
-              {companyMembers.map(member => (
+              {companyMembers.map((member: CompanyMember) => (
                 <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="min-w-0">
                     <div className="font-medium text-gray-800 dark:text-gray-200 truncate">

@@ -62,14 +62,90 @@ export default function ShareBoardModal({ boardId, boardTitle, isOpen, onClose }
     }
   };
 
+  const permissionDescriptions: Record<keyof BoardPermissions, string> = {
+    view_board: 'Pode visualizar o board, colunas e cards.',
+    manage_board: 'Pode renomear, excluir e compartilhar o board.',
+    manage_columns: 'Pode criar, renomear, reordenar e excluir colunas.',
+    create_card: 'Pode criar novos cards em qualquer coluna permitida.',
+    edit_card: 'Pode editar conteúdo dos cards (título, descrição, etc.).',
+    move_card: 'Pode arrastar e soltar cards entre colunas.',
+    delete_card: 'Pode excluir cards.',
+    manage_members: 'Pode gerenciar membros e convites no contexto da empresa.'
+  };
+
+  const storageKey = (companyId: string) => `boardPreset:${boardId}:${companyId}`;
+
+  const resolvePreset = (p: BoardPermissions): 'visualizador' | 'colaborador' | 'administrador' | 'custom' => {
+    const isEqual = (a: BoardPermissions, b: BoardPermissions) =>
+      a.view_board === b.view_board &&
+      a.manage_board === b.manage_board &&
+      a.manage_columns === b.manage_columns &&
+      a.create_card === b.create_card &&
+      a.edit_card === b.edit_card &&
+      a.move_card === b.move_card &&
+      a.delete_card === b.delete_card &&
+      a.manage_members === b.manage_members;
+    if (isEqual(p, PRESETS.visualizador)) return 'visualizador';
+    if (isEqual(p, PRESETS.colaborador)) return 'colaborador';
+    if (isEqual(p, PRESETS.administrador)) return 'administrador';
+    return 'custom';
+  };
+
   useEffect(() => {
     if (isOpen) {
       loadCompanies();
+      // ESC fecha modal
+      const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+      window.addEventListener('keydown', onKey);
       // Define preset padrão ao abrir e aplica os valores do preset
       setPreset('colaborador');
       setPerms(PRESETS.colaborador);
+      return () => window.removeEventListener('keydown', onKey);
     }
-  }, [isOpen]);
+  }, [isOpen, onClose]);
+
+  // Carrega preset/perms persistidos quando empresa muda
+  useEffect(() => {
+    const loadPersisted = async () => {
+      if (!selectedCompany) return;
+      try {
+        // 1) Tenta localStorage
+        const raw = typeof window !== 'undefined' ? window.localStorage.getItem(storageKey(selectedCompany)) : null;
+        if (raw) {
+          const parsed = JSON.parse(raw) as { preset: 'visualizador' | 'colaborador' | 'administrador' | 'custom'; perms: BoardPermissions };
+          setPerms(parsed.perms);
+          setPreset(parsed.preset);
+          return;
+        }
+
+        // 2) Se não houver local, tenta backend (se já compartilhado)
+        const { data: shared } = await companyHelpers.getSharedBoards(selectedCompany);
+        const rec = (shared || []).find((s: any) => s.board_id === boardId);
+        if (rec && rec.permissions) {
+          const p = rec.permissions as BoardPermissions;
+          setPerms(p);
+          setPreset(resolvePreset(p));
+          return;
+        }
+
+        // 3) Fallback para colaborador
+        setPerms(PRESETS.colaborador);
+        setPreset('colaborador');
+      } catch {
+        setPerms(PRESETS.colaborador);
+        setPreset('colaborador');
+      }
+    };
+    loadPersisted();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCompany]);
+
+  const persistSelection = (companyId: string, presetValue: 'visualizador' | 'colaborador' | 'administrador' | 'custom', p: BoardPermissions) => {
+    try {
+      if (typeof window === 'undefined') return;
+      window.localStorage.setItem(storageKey(companyId), JSON.stringify({ preset: presetValue, perms: p }));
+    } catch {}
+  };
 
   const loadCompanies = async () => {
     try {
@@ -196,7 +272,9 @@ export default function ShareBoardModal({ boardId, boardTitle, isOpen, onClose }
                 const value = e.target.value as 'visualizador' | 'colaborador' | 'administrador' | 'custom';
                 setPreset(value);
                 if (value !== 'custom') {
-                  setPerms(PRESETS[value]);
+                  const newPerms = PRESETS[value];
+                  setPerms(newPerms);
+                  if (selectedCompany) persistSelection(selectedCompany, value, newPerms);
                 }
               }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
@@ -211,36 +289,36 @@ export default function ShareBoardModal({ boardId, boardTitle, isOpen, onClose }
           <div className="mt-4 space-y-3">
             <div className="text-sm font-medium text-gray-800 dark:text-gray-200">Permissões</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={perms.view_board} onChange={(e) => { setPerms({ ...perms, view_board: e.target.checked }); setPreset('custom'); }} />
+              <label className="flex items-center gap-2" title={permissionDescriptions.view_board}>
+                <input type="checkbox" checked={perms.view_board} onChange={(e) => { const np = { ...perms, view_board: e.target.checked }; setPerms(np); const pr = 'custom' as const; setPreset(pr); if (selectedCompany) persistSelection(selectedCompany, pr, np); }} />
                 Ver board
               </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={perms.manage_board} onChange={(e) => { setPerms({ ...perms, manage_board: e.target.checked }); setPreset('custom'); }} />
+              <label className="flex items-center gap-2" title={permissionDescriptions.manage_board}>
+                <input type="checkbox" checked={perms.manage_board} onChange={(e) => { const np = { ...perms, manage_board: e.target.checked }; setPerms(np); const pr = 'custom' as const; setPreset(pr); if (selectedCompany) persistSelection(selectedCompany, pr, np); }} />
                 Gerenciar board
               </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={perms.manage_columns} onChange={(e) => { setPerms({ ...perms, manage_columns: e.target.checked }); setPreset('custom'); }} />
+              <label className="flex items-center gap-2" title={permissionDescriptions.manage_columns}>
+                <input type="checkbox" checked={perms.manage_columns} onChange={(e) => { const np = { ...perms, manage_columns: e.target.checked }; setPerms(np); const pr = 'custom' as const; setPreset(pr); if (selectedCompany) persistSelection(selectedCompany, pr, np); }} />
                 Gerenciar colunas
               </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={perms.create_card} onChange={(e) => { setPerms({ ...perms, create_card: e.target.checked }); setPreset('custom'); }} />
+              <label className="flex items-center gap-2" title={permissionDescriptions.create_card}>
+                <input type="checkbox" checked={perms.create_card} onChange={(e) => { const np = { ...perms, create_card: e.target.checked }; setPerms(np); const pr = 'custom' as const; setPreset(pr); if (selectedCompany) persistSelection(selectedCompany, pr, np); }} />
                 Criar cards
               </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={perms.edit_card} onChange={(e) => { setPerms({ ...perms, edit_card: e.target.checked }); setPreset('custom'); }} />
+              <label className="flex items-center gap-2" title={permissionDescriptions.edit_card}>
+                <input type="checkbox" checked={perms.edit_card} onChange={(e) => { const np = { ...perms, edit_card: e.target.checked }; setPerms(np); const pr = 'custom' as const; setPreset(pr); if (selectedCompany) persistSelection(selectedCompany, pr, np); }} />
                 Editar cards
               </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={perms.move_card} onChange={(e) => { setPerms({ ...perms, move_card: e.target.checked }); setPreset('custom'); }} />
+              <label className="flex items-center gap-2" title={permissionDescriptions.move_card}>
+                <input type="checkbox" checked={perms.move_card} onChange={(e) => { const np = { ...perms, move_card: e.target.checked }; setPerms(np); const pr = 'custom' as const; setPreset(pr); if (selectedCompany) persistSelection(selectedCompany, pr, np); }} />
                 Mover cards
               </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={perms.delete_card} onChange={(e) => { setPerms({ ...perms, delete_card: e.target.checked }); setPreset('custom'); }} />
+              <label className="flex items-center gap-2" title={permissionDescriptions.delete_card}>
+                <input type="checkbox" checked={perms.delete_card} onChange={(e) => { const np = { ...perms, delete_card: e.target.checked }; setPerms(np); const pr = 'custom' as const; setPreset(pr); if (selectedCompany) persistSelection(selectedCompany, pr, np); }} />
                 Excluir cards
               </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={perms.manage_members} onChange={(e) => { setPerms({ ...perms, manage_members: e.target.checked }); setPreset('custom'); }} />
+              <label className="flex items-center gap-2" title={permissionDescriptions.manage_members}>
+                <input type="checkbox" checked={perms.manage_members} onChange={(e) => { const np = { ...perms, manage_members: e.target.checked }; setPerms(np); const pr = 'custom' as const; setPreset(pr); if (selectedCompany) persistSelection(selectedCompany, pr, np); }} />
                 Gerenciar membros
               </label>
             </div>

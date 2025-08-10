@@ -12,7 +12,7 @@ export function useNotesManager(options: UseNotesManagerOptions = {}) {
   const [error, setError] = useState<string | null>(null);
   const isReloadingRef = useRef(false);
   const lastUpdateRef = useRef<number>(0);
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { onNotesLoaded, autoRefreshInterval = 0 } = options;
 

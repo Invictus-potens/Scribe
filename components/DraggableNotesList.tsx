@@ -155,7 +155,7 @@ export default function DraggableNotesList({
 
 
   const sortedNotes = useMemo(() => {
-    return notes.sort((a, b) => {
+    return [...notes].sort((a, b) => {
       // Pinned notes first
       if (a.is_pinned && !b.is_pinned) return -1;
       if (!a.is_pinned && b.is_pinned) return 1;

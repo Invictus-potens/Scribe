@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -45,6 +45,7 @@ export default function Home() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showUnsavedModal, setShowUnsavedModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const saveCurrentNoteRef = useRef<() => Promise<void> | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
   // Hook personalizado para gerenciar notas com auto-update
@@ -364,6 +365,7 @@ export default function Home() {
                   setPendingAction(null);
                   setShowUnsavedModal(false);
                 }}
+                onRegisterSave={(fn) => { saveCurrentNoteRef.current = fn; }}
               />
             )}
             {activeView === 'kanban' && <KanbanBoard />}
@@ -424,13 +426,20 @@ export default function Home() {
             
             <div className="flex flex-col space-y-3">
               <button
-                onClick={() => {
-                  setHasUnsavedChanges(false);
-                  if (pendingAction) {
-                    pendingAction();
-                    setPendingAction(null);
+                onClick={async () => {
+                  try {
+                    if (saveCurrentNoteRef.current) {
+                      await saveCurrentNoteRef.current();
+                    }
+                    setHasUnsavedChanges(false);
+                    if (pendingAction) {
+                      pendingAction();
+                      setPendingAction(null);
+                    }
+                    setShowUnsavedModal(false);
+                  } catch (e) {
+                    console.error('Erro ao salvar antes de continuar:', e);
                   }
-                  setShowUnsavedModal(false);
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >

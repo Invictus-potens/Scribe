@@ -23,6 +23,9 @@ import Highlight from '@tiptap/extension-highlight';
 
 import Dropcursor from '@tiptap/extension-dropcursor';
 import { notesHelpers, authHelpers, templatesHelpers } from '../lib/supabase';
+import ConfirmDialog from './ConfirmDialog';
+import { useToast } from './ToastProvider';
+import DOMPurify from 'dompurify';
 
 // Verificar se estamos no lado do cliente
 const isClient = typeof window !== 'undefined';
@@ -38,6 +41,7 @@ interface NotesEditorProps {
   setHasUnsavedChanges?: (hasChanges: boolean) => void;
   onUnsavedChangesConfirm?: () => void;
   onUnsavedChangesCancel?: () => void;
+  onRegisterSave?: (fn: () => Promise<void>) => void;
 }
 
 export default function NotesEditor({ 
@@ -50,7 +54,8 @@ export default function NotesEditor({
   hasUnsavedChanges: globalHasUnsavedChanges = false,
   setHasUnsavedChanges: setGlobalHasUnsavedChanges,
   onUnsavedChangesConfirm,
-  onUnsavedChangesCancel
+  onUnsavedChangesCancel,
+  onRegisterSave
 }: NotesEditorProps) {
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -73,8 +78,10 @@ export default function NotesEditor({
   const hasUnsavedChanges = globalHasUnsavedChanges || localHasUnsavedChanges;
   const setHasUnsavedChanges = setGlobalHasUnsavedChanges || setLocalHasUnsavedChanges;
 
-  // Ref para armazenar a função de salvar
-  const saveFunctionRef = useRef<(() => Promise<void>) | null>(null);
+  const toast = useToast();
+  const dompurifyRef = useRef<typeof DOMPurify | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -153,7 +160,25 @@ export default function NotesEditor({
       const { data } = await templatesHelpers.getTemplates(user.id);
       setTemplates(data || []);
     })();
+    // setup DOMPurify ref on client
+    try {
+      dompurifyRef.current = DOMPurify;
+    } catch {
+      dompurifyRef.current = null;
+    }
   }, []);
+
+  const sanitize = useCallback((html: string) => {
+    const dp = dompurifyRef.current;
+    if (!dp) return html;
+    try {
+      return dp.sanitize(html);
+    } catch {
+      return html;
+    }
+  }, []);
+
+  
 
   // Verificar se há mudanças reais comparando com o conteúdo original
   const checkForRealChanges = useCallback(() => {
@@ -225,7 +250,7 @@ export default function NotesEditor({
         const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
         if (error) {
           console.error('Error updating note:', error);
-          alert(`Error updating note: ${error.message}`);
+          toast.error(`Erro ao atualizar a nota: ${error.message}`);
           return;
         }
         setSelectedNote(data);
@@ -245,7 +270,7 @@ export default function NotesEditor({
         });
         if (error) {
           console.error('Error creating note:', error);
-          alert(`Error creating note: ${error.message}`);
+          toast.error(`Erro ao criar a nota: ${error.message}`);
           return;
         }
         setSelectedNote(data);
@@ -256,14 +281,29 @@ export default function NotesEditor({
       }
     } catch (error) {
       console.error('Error saving note:', error);
-      alert('An unexpected error occurred while saving the note');
+      toast.error('Erro inesperado ao salvar a nota');
     }
   }, [selectedNote, editor, isPinned, isFavorite, isArchived, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved, title, tags]);
 
-  // Atualizar o ref da função de salvar sempre que handleSave mudar
+  // Atalho Ctrl/Cmd+S para salvar
   useEffect(() => {
-    saveFunctionRef.current = handleSave;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [handleSave]);
+
+  // Expor função de salvar para o componente pai
+  useEffect(() => {
+    if (onRegisterSave) {
+      onRegisterSave(handleSave);
+    }
+  }, [onRegisterSave, handleSave]);
+
 
   // Removed unused handleSaveContent to satisfy linter
 
@@ -395,10 +435,21 @@ export default function NotesEditor({
           <button
             onClick={async () => {
               const newFav = !isFavorite;
+              const prev = isFavorite;
               setIsFavorite(newFav);
               if (selectedNote?.id) {
-                await notesHelpers.toggleFavorite(selectedNote.id, newFav);
-                setHasUnsavedChanges(false);
+                try {
+                  const { error } = await notesHelpers.toggleFavorite(selectedNote.id, newFav);
+                  if (error) {
+                    throw error;
+                  }
+                  setHasUnsavedChanges(false);
+                  toast.success(newFav ? 'Adicionada aos favoritos' : 'Removida dos favoritos');
+                } catch (err: any) {
+                  console.error('Error toggling favorite:', err);
+                  setIsFavorite(prev);
+                  toast.error(`Erro ao atualizar favorito: ${err?.message || 'Erro desconhecido'}`);
+                }
               } else {
                 setHasUnsavedChanges(true);
               }
@@ -415,10 +466,21 @@ export default function NotesEditor({
           <button
             onClick={async () => {
               const newArchived = !isArchived;
+              const prev = isArchived;
               setIsArchived(newArchived);
               if (selectedNote?.id) {
-                await notesHelpers.toggleArchived(selectedNote.id, newArchived);
-                setHasUnsavedChanges(false);
+                try {
+                  const { error } = await notesHelpers.toggleArchived(selectedNote.id, newArchived);
+                  if (error) {
+                    throw error;
+                  }
+                  setHasUnsavedChanges(false);
+                  toast.success(newArchived ? 'Nota arquivada' : 'Nota desarquivada');
+                } catch (err: any) {
+                  console.error('Error toggling archived:', err);
+                  setIsArchived(prev);
+                  toast.error(`Erro ao atualizar arquivamento: ${err?.message || 'Erro desconhecido'}`);
+                }
               } else {
                 setHasUnsavedChanges(true);
               }
@@ -475,7 +537,7 @@ export default function NotesEditor({
                   <button
                     key={t.id}
                     onClick={() => {
-                      editor?.commands.setContent(t.content || '');
+                      editor?.commands.setContent(sanitize(t.content || ''));
                       setTitle(t.title || title);
                       setTags(t.tags || []);
                       setShowTemplates(false);
@@ -576,9 +638,9 @@ export default function NotesEditor({
                       if (isMarkdown) {
                         const { marked } = await import('marked');
                         const html = marked(text) as any;
-                        editor?.commands.setContent(String(html));
+                        editor?.commands.setContent(sanitize(String(html)));
                       } else {
-                        editor?.commands.setContent(text);
+                        editor?.commands.setContent(sanitize(text));
                       }
                       setHasUnsavedChanges(true);
                       setShowImportExport(false);
@@ -592,24 +654,7 @@ export default function NotesEditor({
           {selectedNote && selectedNote.id && (
             <button
               onClick={() => {
-                checkUnsavedChanges(() => {
-                  if (confirm('Tem certeza que deseja deletar esta nota?')) {
-                    notesHelpers.deleteNote(selectedNote.id).then(({ error }) => {
-                      if (error) {
-                        console.error('Error deleting note:', error);
-                        alert(`Error deleting note: ${error.message}`);
-                      } else {
-                        setSelectedNote(null);
-                        if (onNoteSaved) {
-                          onNoteSaved();
-                        }
-                      }
-                    }).catch((error) => {
-                      console.error('Error deleting note:', error);
-                      alert('An unexpected error occurred while deleting the note');
-                    });
-                  }
-                });
+                checkUnsavedChanges(() => setShowDeleteConfirm(true));
               }}
               className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900 transition-colors text-red-600 dark:text-red-400"
               title="Delete Note"
@@ -958,7 +1003,7 @@ export default function NotesEditor({
                   type="text"
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
                   placeholder="Nome da tag"
                   className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
                 />
@@ -1002,7 +1047,7 @@ export default function NotesEditor({
                   </div>
                   <div 
                     className="prose prose-sm max-w-none dark:prose-invert"
-                    dangerouslySetInnerHTML={{ __html: secondNote.content || '' }}
+                    dangerouslySetInnerHTML={{ __html: sanitize(secondNote.content || '') }}
                   />
                 </div>
               ) : (
@@ -1131,6 +1176,40 @@ export default function NotesEditor({
           </div>
         </div>
       )}
+
+      {/* Confirmar deleção */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Deletar nota"
+        description="Tem certeza que deseja deletar esta nota? Esta ação não pode ser desfeita."
+        confirmText="Deletar"
+        cancelText="Cancelar"
+        loading={isDeleting}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={async () => {
+          if (!selectedNote?.id) return;
+          try {
+            setIsDeleting(true);
+            const { error } = await notesHelpers.deleteNote(selectedNote.id);
+            if (error) {
+              console.error('Error deleting note:', error);
+              toast.error(`Erro ao deletar a nota: ${error.message}`);
+              return;
+            }
+            setShowDeleteConfirm(false);
+            setSelectedNote(null);
+            toast.success('Nota deletada');
+            if (onNoteSaved) {
+              onNoteSaved();
+            }
+          } catch (e) {
+            console.error('Error deleting note:', e);
+            toast.error('Erro inesperado ao deletar a nota');
+          } finally {
+            setIsDeleting(false);
+          }
+        }}
+      />
     </div>
   );
 }

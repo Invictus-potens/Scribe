@@ -6,10 +6,13 @@ import { kanbanHelpers, KanbanBoardWithData, KanbanCard } from '../lib/kanbanHel
 import { companyHelpers, type BoardPermissions, type AccessibleBoardMeta } from '../lib/companyHelpers';
 import ConfirmDialog from './ConfirmDialog';
 import { useToast } from './ToastProvider';
+import { useI18n, useDateFormatter } from './I18nProvider';
 import { authHelpers } from '../lib/supabase';
 import ShareBoardModal from './ShareBoardModal';
 
 export default function KanbanBoard() {
+  const { t } = useI18n();
+  const { formatDate } = useDateFormatter();
   const [boards, setBoards] = useState<AccessibleBoardMeta[]>([]);
   const [activeBoard, setActiveBoard] = useState<KanbanBoardWithData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,7 +86,7 @@ export default function KanbanBoard() {
   const handleCreateBoard = async () => {
     try {
       if (!currentUser) return;
-      const title = typeof window !== 'undefined' ? window.prompt('Nome do board', 'Meu Board') : 'Meu Board';
+      const title = typeof window !== 'undefined' ? window.prompt(t('kanban.createBoard'), 'Meu Board') : 'Meu Board';
       if (!title) return;
 
       const { data: createdBoard, error } = await kanbanHelpers.createBoard(currentUser.id, title);
@@ -160,19 +163,19 @@ export default function KanbanBoard() {
       const meta = boards.find(b => b.id === activeBoard.id);
       const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
       if (!can('manage_board')) {
-        toast.info('Você não tem permissão para renomear este board.');
+        toast.info(t('kanban.noPermissionCreateColumns'));
         return;
       }
       const title = renameBoardTitle.trim();
       if (!title || title === activeBoard.title) return;
       const { data, error } = await kanbanHelpers.updateBoard(activeBoard.id, title);
       if (error || !data) {
-        toast.error('Erro ao renomear o board.');
+        toast.error(t('kanban.boardRenameError'));
         return;
       }
       setBoards(prev => prev.map(b => (b.id === data.id ? { ...b, title: data.title } : b)));
       setActiveBoard({ ...activeBoard, title: data.title });
-      toast.success('Board renomeado com sucesso.');
+      toast.success(t('kanban.boardRenamed'));
       setShowRenameBoardModal(false);
     } catch (error) {
       console.error('Error renaming board:', error);
@@ -185,7 +188,7 @@ export default function KanbanBoard() {
     const meta = boards.find(b => b.id === activeBoard.id);
     const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
     if (!can('manage_board')) {
-      toast.info('Você não tem permissão para excluir este board.');
+      toast.info(t('kanban.noPermissionCreateColumns'));
       return;
     }
     setConfirmDeleteOpen(true);
@@ -197,7 +200,7 @@ export default function KanbanBoard() {
       setConfirmDeleteLoading(true);
       const { error } = await kanbanHelpers.deleteBoard(activeBoard.id);
       if (error) {
-        toast.error('Erro ao excluir o board.');
+        toast.error(t('kanban.boardDeleteError'));
         return;
       }
       const remaining = boards.filter(b => b.id !== activeBoard.id);
@@ -209,7 +212,7 @@ export default function KanbanBoard() {
       } else {
         await createDefaultBoardSilently();
       }
-      toast.success('Board excluído.');
+      toast.success(t('kanban.boardDeleted'));
     } catch (error) {
       console.error('Error deleting board:', error);
       toast.error('Erro inesperado ao excluir o board.');
@@ -252,7 +255,7 @@ export default function KanbanBoard() {
     const meta = boards.find(b => b.id === activeBoard.id);
     const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
     if (!can('move_card')) {
-      toast.info('Você não tem permissão para mover cards.');
+      toast.info(t('kanban.noPermissionCreateCards'));
       return;
     }
 
@@ -288,7 +291,7 @@ export default function KanbanBoard() {
       ]);
     } catch (error) {
       console.error('Error moving card:', error);
-      toast.error('Erro ao mover o card.');
+      toast.error(t('kanban.moveCardError'));
     } finally {
       setDraggedCard(null);
       setDragOverColumnId(null);
@@ -301,7 +304,7 @@ export default function KanbanBoard() {
     const meta = boards.find(b => b.id === activeBoard.id);
     const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
     if (!can('create_card')) {
-      toast.info('Você não tem permissão para criar cards.');
+      toast.info(t('kanban.noPermissionCreateCards'));
       return;
     }
 
@@ -325,7 +328,7 @@ export default function KanbanBoard() {
 
       if (error) {
         console.error('Error creating card:', error);
-        toast.error('Erro ao criar card.');
+        toast.error(t('kanban.cardCreateError'));
         return;
       }
 
@@ -354,7 +357,7 @@ export default function KanbanBoard() {
         dueDate: '',
         tags: []
       });
-      toast.success('Card criado com sucesso.');
+      toast.success(t('kanban.cardCreated'));
     } catch (error) {
       console.error('Error creating card:', error);
       toast.error('Erro inesperado ao criar card.');
@@ -378,7 +381,7 @@ export default function KanbanBoard() {
       setActiveBoard(boardData);
     } catch (error) {
       console.error('Error loading board:', error);
-      toast.error('Erro ao carregar o board.');
+      toast.error(t('kanban.loadBoardError'));
     }
   };
 
@@ -513,7 +516,7 @@ export default function KanbanBoard() {
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <i className="ri-loader-4-line w-4 h-4 text-white animate-spin"></i>
           </div>
-          <p className="text-gray-500 dark:text-gray-400">Carregando Kanban...</p>
+          <p className="text-gray-500 dark:text-gray-400">{t('kanban.loading')}</p>
         </div>
       </div>
     );
@@ -524,13 +527,13 @@ export default function KanbanBoard() {
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
           <i className="ri-kanban-view w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4"></i>
-          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Nenhum Board Disponível</h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">Crie um novo board para começar</p>
+          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">{t('kanban.noBoardTitle')}</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">{t('kanban.noBoardSubtitle')}</p>
           <button
             onClick={handleCreateBoard}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
           >
-            Criar Board
+            {t('kanban.createBoard')}
           </button>
         </div>
       </div>
@@ -541,16 +544,16 @@ export default function KanbanBoard() {
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Kanban Board</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('kanban.title')}</h1>
           <select
             value={activeBoard.id}
             onChange={(e) => handleBoardChange(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm pr-8"
-            title="Selecionar board"
+            title={t('kanban.selectBoard')}
           >
             {boards.map(board => (
               <option key={board.id} value={board.id}>
-                {board.title} {board.is_shared && `(Compartilhado por ${board.company_name})`}
+                 {board.title} {board.is_shared && `(${t('kanban.sharedBy')} ${board.company_name})`}
               </option>
             ))}
           </select>
@@ -559,7 +562,7 @@ export default function KanbanBoard() {
           <button
             onClick={handleCreateBoard}
             className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
-            title="Novo board"
+            title={t('kanban.newBoard')}
           >
             <i className="ri-layout-grid-line w-4 h-4 flex items-center justify-center"></i>
           </button>
@@ -570,7 +573,7 @@ export default function KanbanBoard() {
             }}
             disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_board}
             className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
-            title="Renomear board"
+            title={t('kanban.renameBoard')}
           >
             <i className="ri-edit-line w-4 h-4 flex items-center justify-center"></i>
           </button>
@@ -578,7 +581,7 @@ export default function KanbanBoard() {
             onClick={handleDeleteBoard}
             disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_board}
             className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
-            title="Excluir board"
+            title={t('kanban.deleteBoard')}
           >
             <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
           </button>
@@ -593,10 +596,10 @@ export default function KanbanBoard() {
             }}
             disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_board}
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
-            title="Compartilhar board"
+            title={t('kanban.shareBoard')}
           >
             <i className="ri-share-line w-4 h-4 flex items-center justify-center"></i>
-            <span>Compartilhar</span>
+            <span>{t('kanban.share')}</span>
           </button>
           <button
             onClick={() => {
@@ -617,7 +620,7 @@ export default function KanbanBoard() {
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
           >
             <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-            <span>Add Card</span>
+            <span>{t('kanban.addCard')}</span>
           </button>
           <button
             onClick={() => {
@@ -631,7 +634,7 @@ export default function KanbanBoard() {
               setShowNewColumnModal(true);
             }}
             className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
-            title="Nova coluna"
+            title={t('kanban.newColumn')}
           >
             <i className="ri-column-density w-4 h-4 flex items-center justify-center"></i>
           </button>
@@ -668,8 +671,8 @@ export default function KanbanBoard() {
                     }}
                     disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.create_card}
                     className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                    title="Adicionar card"
-                    aria-label="Adicionar card"
+                    title={t('kanban.columnAddCard')}
+                    aria-label={t('kanban.columnAddCard')}
                   >
                     <i className="ri-add-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
                   </button>
@@ -706,7 +709,7 @@ export default function KanbanBoard() {
                       {card.due_date && (
                         <span className="flex items-center space-x-1">
                           <i className="ri-calendar-line w-3 h-3 flex items-center justify-center"></i>
-                          <span>{new Date(card.due_date).toLocaleDateString()}</span>
+                          <span>{formatDate(card.due_date, { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
                         </span>
                       )}
                     </div>
@@ -752,58 +755,58 @@ export default function KanbanBoard() {
       {showNewCardModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Create New Card</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">{t('kanban.createNewCard')}</h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('kanban.field.title')}</label>
                 <input
                   type="text"
                   value={newCard.title}
                   onChange={(e) => setNewCard({ ...newCard, title: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  placeholder="Card title"
+                  placeholder={t('kanban.field.title')}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('kanban.field.description')}</label>
                 <textarea
                   value={newCard.description}
                   onChange={(e) => setNewCard({ ...newCard, description: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
                   rows={3}
-                  placeholder="Card description"
+                  placeholder={t('kanban.field.description')}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assignee</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('kanban.field.assignee')}</label>
                 <input
                   type="text"
                   value={newCard.assignee}
                   onChange={(e) => setNewCard({ ...newCard, assignee: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  placeholder="Assigned to"
+                  placeholder={t('kanban.field.assignee')}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('kanban.field.priority')}</label>
                 <select
                   value={newCard.priority}
                   onChange={(e) => setNewCard({ ...newCard, priority: e.target.value as 'low' | 'medium' | 'high' })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm pr-8"
                   title="Selecionar prioridade"
                 >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
+                  <option value="low">{t('kanban.priority.low')}</option>
+                  <option value="medium">{t('kanban.priority.medium')}</option>
+                  <option value="high">{t('kanban.priority.high')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('kanban.field.dueDate')}</label>
                 <input
                   type="date"
                   value={newCard.dueDate}
@@ -819,14 +822,14 @@ export default function KanbanBoard() {
                 onClick={() => setShowNewCardModal(false)}
                 className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors whitespace-nowrap"
               >
-                Cancel
+                {t('kanban.cancel')}
               </button>
               <button
                 onClick={handleCreateCard}
                 disabled={creatingCard}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors whitespace-nowrap"
               >
-                {creatingCard ? 'Creating...' : 'Create Card'}
+                {creatingCard ? t('kanban.creating') : t('kanban.create')}
               </button>
             </div>
           </div>
@@ -836,7 +839,7 @@ export default function KanbanBoard() {
       {showRenameBoardModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Renomear Board</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">{t('kanban.renameBoardTitle')}</h3>
             <input
               type="text"
               value={renameBoardTitle}
@@ -845,8 +848,8 @@ export default function KanbanBoard() {
               placeholder="Novo nome do board"
             />
             <div className="flex justify-end space-x-3 mt-6">
-              <button onClick={() => setShowRenameBoardModal(false)} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">Cancelar</button>
-              <button onClick={handleRenameBoard} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Salvar</button>
+              <button onClick={() => setShowRenameBoardModal(false)} className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">{t('kanban.cancel')}</button>
+              <button onClick={handleRenameBoard} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{t('editor.save')}</button>
             </div>
           </div>
         </div>
@@ -855,7 +858,7 @@ export default function KanbanBoard() {
       {showNewColumnModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Nova Coluna</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">{t('kanban.newColumnTitle')}</h3>
             <input
               type="text"
               value={newColumnTitle}
@@ -880,7 +883,7 @@ export default function KanbanBoard() {
                   setActiveBoard(updated);
                   setShowNewColumnModal(false);
                 } catch (e) { console.error(e); toast.error('Erro inesperado'); }
-              }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Criar</button>
+              }} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">{t('kanban.createColumn')}</button>
             </div>
           </div>
         </div>
@@ -896,9 +899,9 @@ export default function KanbanBoard() {
 
       <ConfirmDialog
         isOpen={confirmDeleteOpen}
-        title="Excluir board"
-        description="Esta ação não pode ser desfeita. Deseja excluir o board?"
-        confirmText="Excluir"
+        title={t('kanban.confirm.deleteBoard.title')}
+        description={t('kanban.confirm.deleteBoard.desc')}
+        confirmText={t('kanban.confirm.delete')}
         loading={confirmDeleteLoading}
         onConfirm={confirmDelete}
         onCancel={() => setConfirmDeleteOpen(false)}
@@ -906,9 +909,9 @@ export default function KanbanBoard() {
 
       <ConfirmDialog
         isOpen={confirmDeleteCardOpen}
-        title="Excluir card"
-        description="Esta ação não pode ser desfeita. Deseja excluir o card?"
-        confirmText="Excluir"
+        title={t('kanban.confirm.deleteCard.title')}
+        description={t('kanban.confirm.deleteCard.desc')}
+        confirmText={t('kanban.confirm.delete')}
         loading={confirmDeleteCardLoading}
         onConfirm={async () => {
           try {

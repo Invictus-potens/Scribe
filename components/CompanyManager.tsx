@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useI18n } from './I18nProvider';
 import { companyHelpers, Company, CompanyMember } from '../lib/companyHelpers';
 import { authHelpers } from '../lib/supabase';
 
 export default function CompanyManager() {
+  const { t } = useI18n();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -200,7 +202,7 @@ export default function CompanyManager() {
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <i className="ri-loader-4-line w-4 h-4 text-white animate-spin"></i>
           </div>
-          <p className="text-gray-500 dark:text-gray-400">Carregando empresas...</p>
+          <p className="text-gray-500 dark:text-gray-400">{t('companies.loading') ?? 'Carregando empresas...'}</p>
         </div>
       </div>
     );
@@ -209,13 +211,13 @@ export default function CompanyManager() {
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Gerenciar Empresas</h1>
+        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{t('companies.manage') ?? 'Gerenciar Empresas'}</h1>
         <button
           onClick={() => setShowCreateModal(true)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
         >
           <i className="ri-add-line w-4 h-4"></i>
-          <span>Nova Empresa</span>
+          <span>{t('companies.new') ?? 'Nova Empresa'}</span>
         </button>
       </div>
 
@@ -223,7 +225,7 @@ export default function CompanyManager() {
         <div className={`mx-6 mt-3 rounded-md p-3 text-sm ${banner.type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100' : banner.type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100'}`}>
           <div className="flex items-center justify-between">
             <span>{banner.text}</span>
-            <button onClick={() => setBanner(null)} className="ml-4 text-xs opacity-70 hover:opacity-100">Fechar</button>
+            <button onClick={() => setBanner(null)} className="ml-4 text-xs opacity-70 hover:opacity-100">{t('common.close') ?? 'Fechar'}</button>
           </div>
         </div>
       )}
@@ -261,8 +263,8 @@ export default function CompanyManager() {
                 </div>
               </div>
               
-              <div className="text-xs text-gray-500">
-                Criada em {new Date(company.created_at).toLocaleDateString()}
+                 <div className="text-xs text-gray-500">
+                {t('companies.createdAt') ?? 'Criada em'} {new Date(company.created_at).toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' })}
               </div>
             </div>
           ))}
@@ -271,8 +273,8 @@ export default function CompanyManager() {
         {companies.length === 0 && (
           <div className="text-center py-12">
             <i className="ri-building-line w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4"></i>
-            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Nenhuma Empresa</h3>
-            <p className="text-gray-500 dark:text-gray-400">Crie sua primeira empresa para começar a colaborar</p>
+            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">{t('companies.none') ?? 'Nenhuma Empresa'}</h3>
+            <p className="text-gray-500 dark:text-gray-400">{t('companies.createFirst') ?? 'Crie sua primeira empresa para começar a colaborar'}</p>
           </div>
         )}
       </div>
@@ -281,28 +283,28 @@ export default function CompanyManager() {
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Nova Empresa</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">{t('companies.new') ?? 'Nova Empresa'}</h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome da Empresa</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('companies.name') ?? 'Nome da Empresa'}</label>
                 <input
                   type="text"
                   value={newCompany.name}
                   onChange={(e) => setNewCompany({ ...newCompany, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  placeholder="Digite o nome da empresa"
+                  placeholder={t('companies.namePlaceholder') ?? 'Digite o nome da empresa'}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descrição (opcional)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('companies.description') ?? 'Descrição (opcional)'}</label>
                 <textarea
                   value={newCompany.description}
                   onChange={(e) => setNewCompany({ ...newCompany, description: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
                   rows={3}
-                  placeholder="Descrição da empresa"
+                  placeholder={t('companies.descriptionPlaceholder') ?? 'Descrição da empresa'}
                 />
               </div>
             </div>
@@ -312,13 +314,13 @@ export default function CompanyManager() {
                 onClick={() => setShowCreateModal(false)}
                 className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
               >
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleCreateCompany}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
               >
-                Criar Empresa
+                {t('companies.create') ?? 'Criar Empresa'}
               </button>
             </div>
           </div>
@@ -330,31 +332,31 @@ export default function CompanyManager() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">
-              Convidar para {selectedCompany.name}
+              {t('companies.inviteTo') ?? 'Convidar para'} {selectedCompany.name}
             </h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email do Usuário</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('companies.userEmail') ?? 'Email do Usuário'}</label>
                 <input
                   type="email"
                   value={inviteData.email}
                   onChange={(e) => setInviteData({ ...inviteData, email: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  placeholder="usuario@exemplo.com"
+                  placeholder={t('companies.userEmailPlaceholder') ?? 'usuario@exemplo.com'}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Função</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('companies.role') ?? 'Função'}</label>
                 <select
                   value={inviteData.role}
                   onChange={(e) => setInviteData({ ...inviteData, role: e.target.value as 'admin' | 'member' })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
                   title="Selecionar função"
                 >
-                  <option value="member">Membro</option>
-                  <option value="admin">Administrador</option>
+                  <option value="member">{t('companies.role.member') ?? 'Membro'}</option>
+                  <option value="admin">{t('companies.role.admin') ?? 'Administrador'}</option>
                 </select>
               </div>
             </div>
@@ -364,13 +366,13 @@ export default function CompanyManager() {
                 onClick={() => setShowInviteModal(false)}
                 className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
               >
-                Cancelar
+                {t('common.cancel')}
               </button>
               <button
                 onClick={handleInviteUser}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
               >
-                Enviar Convite
+                {t('companies.sendInvite') ?? 'Enviar Convite'}
               </button>
             </div>
           </div>
@@ -383,14 +385,14 @@ export default function CompanyManager() {
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Membros de {selectedCompany.name}
+                {t('companies.membersOf') ?? 'Membros de'} {selectedCompany.name}
               </h3>
               <div className="flex items-center space-x-2">
                 {currentUserRole === 'owner' && (
                   <button
                     onClick={() => setShowEditCompanyModal(true)}
                     className="p-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100"
-                    title="Editar empresa"
+                    title={t('companies.edit') ?? 'Editar empresa'}
                   >
                     <i className="ri-edit-2-line w-5 h-5"></i>
                   </button>
@@ -398,7 +400,7 @@ export default function CompanyManager() {
                 <button
                   onClick={() => setShowMembersModal(false)}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                  title="Fechar"
+                  title={t('common.close') ?? 'Fechar'}
                 >
                   <i className="ri-close-line w-5 h-5"></i>
                 </button>
@@ -436,7 +438,7 @@ export default function CompanyManager() {
                         onClick={() => handleRemoveMember(member)}
                         disabled={memberOps[member.id] === 'remove'}
                         className="p-2 text-red-600 hover:text-red-700 disabled:opacity-50"
-                        title="Remover membro"
+                        title={t('companies.removeMember') ?? 'Remover membro'}
                       >
                         <i className="ri-user-unfollow-line w-4 h-4"></i>
                       </button>

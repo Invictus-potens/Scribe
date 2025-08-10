@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useI18n, useDateFormatter } from './I18nProvider';
 import { calendarHelpers, authHelpers, CalendarEvent } from '../lib/supabase';
 
 interface Event {
@@ -37,6 +38,8 @@ const REMINDER_OPTIONS = [
 ];
 
 export default function Calendar() {
+  const { t } = useI18n();
+  const { formatDate, formatMonthYear, formatLongDate, getWeekdayShortNames } = useDateFormatter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
   const [_, setLoading] = useState(true);
@@ -166,10 +169,7 @@ export default function Calendar() {
     loadEvents();
   }, [currentDate]);
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  const monthLabel = formatMonthYear(currentDate);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -367,20 +367,22 @@ export default function Calendar() {
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">Calendar</h1>
+          <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">{t('calendar.title')}</h1>
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePrevMonth}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Prev"
             >
               <i className="ri-arrow-left-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
             </button>
             <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 min-w-[180px] text-center">
-              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+              {monthLabel}
             </h2>
             <button
               onClick={handleNextMonth}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              title="Next"
             >
               <i className="ri-arrow-right-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
             </button>
@@ -394,7 +396,7 @@ export default function Calendar() {
               className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
             >
               <i className="ri-notification-line w-4 h-4 flex items-center justify-center"></i>
-              <span>Enable Notifications</span>
+              <span>{t('calendar.enableNotifications')}</span>
             </button>
           )}
 
@@ -403,14 +405,14 @@ export default function Calendar() {
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
           >
             <i className="ri-add-line w-4 h-4 flex items-center justify-center"></i>
-            <span>New Event</span>
+            <span>{t('calendar.newEvent')}</span>
           </button>
         </div>
       </div>
 
       <div className="flex-1 p-6">
         <div className="grid grid-cols-7 gap-2 mb-4">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          {getWeekdayShortNames().map(day => (
             <div key={day} className="text-center text-sm font-semibold text-gray-700 dark:text-gray-300 py-2">
               {day}
             </div>
@@ -480,7 +482,7 @@ export default function Calendar() {
           })}
           {dayEvents.length > 3 && (
             <div className="text-xs text-gray-500 px-1">
-              +{dayEvents.length - 3} more
+              +{dayEvents.length - 3} {t('calendar.more')}
             </div>
           )}
         </div>
@@ -493,17 +495,11 @@ export default function Calendar() {
       {selectedDate && (
         <div className="fixed right-6 top-20 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 z-40">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-              {getLocalDateFromYYYYMMDD(selectedDate).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
-            </h3>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-200">{formatLongDate(getLocalDateFromYYYYMMDD(selectedDate))}</h3>
             <button
               onClick={() => setSelectedDate(null)}
               className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              title="Close"
             >
               <i className="ri-close-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
             </button>
@@ -535,14 +531,14 @@ export default function Calendar() {
                       <button
                         onClick={() => handleEditEvent(event)}
                         className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                        title="Edit event"
+                        title={t('editor.edit') ?? 'Edit'}
                       >
                         <i className="ri-edit-line w-3 h-3 flex items-center justify-center text-gray-500"></i>
                       </button>
                       <button
                         onClick={() => handleDeleteEvent(event.id)}
                         className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                        title="Delete event"
+                        title={t('common.delete')}
                       >
                         <i className="ri-delete-bin-line w-3 h-3 flex items-center justify-center text-gray-500"></i>
                       </button>
@@ -553,7 +549,7 @@ export default function Calendar() {
             })}
 
             {getEventsForDate(parseInt(selectedDate.split('-')[2])).length === 0 && (
-              <p className="text-sm text-gray-500 text-center py-4">No events on this day</p>
+              <p className="text-sm text-gray-500 text-center py-4">{t('calendar.noEventsOnDay')}</p>
             )}
           </div>
         </div>
@@ -562,24 +558,26 @@ export default function Calendar() {
       {showEventModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Create New Event</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">{t('calendar.createNewEvent')}</h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event Title</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('calendar.eventTitle')}</label>
                 <input
                   type="text"
                   value={newEvent.title}
                   onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  placeholder="Enter event title"
+                  placeholder={t('calendar.enterEventTitle')}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('calendar.date')}</label>
+                  <label className="sr-only" htmlFor="create-date">{t('calendar.date')}</label>
                   <input
+                    id="create-date"
                     type="date"
                     value={newEvent.date}
                     onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })}
@@ -588,8 +586,10 @@ export default function Calendar() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('calendar.time')}</label>
+                  <label className="sr-only" htmlFor="create-time">{t('calendar.time')}</label>
                   <input
+                    id="create-time"
                     type="time"
                     value={newEvent.time}
                     onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
@@ -599,7 +599,7 @@ export default function Calendar() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('calendar.description')}</label>
                 <textarea
                   value={newEvent.description}
                   onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
@@ -610,7 +610,7 @@ export default function Calendar() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event Color</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('calendar.eventColor')}</label>
                 <div className="grid grid-cols-4 gap-2">
                   {EVENT_COLORS.map(color => (
                     <button
@@ -638,14 +638,16 @@ export default function Calendar() {
                   className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                 />
                 <label htmlFor="reminder" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Set reminder
+                  {t('calendar.setReminder')}
                 </label>
               </div>
 
               {newEvent.reminder && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reminder Time</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('calendar.reminderTime')}</label>
+                  <label className="sr-only" htmlFor="reminder-time-select">{t('calendar.reminderTime')}</label>
                   <select
+                    id="reminder-time-select"
                     value={newEvent.reminderMinutes}
                     onChange={(e) => setNewEvent({ ...newEvent, reminderMinutes: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
@@ -662,7 +664,7 @@ export default function Calendar() {
               {newEvent.reminder && notificationPermission !== 'granted' && (
                 <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                   <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    Please enable notifications to receive reminders.
+                    {t('calendar.enableNotifications')}
                   </p>
                 </div>
               )}
@@ -673,13 +675,13 @@ export default function Calendar() {
                 onClick={() => setShowEventModal(false)}
                 className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors whitespace-nowrap"
               >
-                Cancel
+                {t('calendar.cancel')}
               </button>
               <button
                 onClick={handleCreateEvent}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors whitespace-nowrap"
               >
-                Create Event
+                {t('calendar.createEvent')}
               </button>
             </div>
           </div>
@@ -689,24 +691,26 @@ export default function Calendar() {
       {showEditModal && editingEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Edit Event</h3>
+            <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">{t('calendar.editEvent')}</h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event Title</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('calendar.eventTitle')}</label>
                 <input
                   type="text"
                   value={editingEvent.title}
                   onChange={(e) => setEditingEvent({ ...editingEvent, title: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  placeholder="Enter event title"
+                  placeholder={t('calendar.enterEventTitle')}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('calendar.date')}</label>
+                  <label className="sr-only" htmlFor="edit-date">{t('calendar.date')}</label>
                   <input
+                    id="edit-date"
                     type="date"
                     value={editingEvent.date}
                     onChange={(e) => setEditingEvent({ ...editingEvent, date: e.target.value })}
@@ -715,8 +719,10 @@ export default function Calendar() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('calendar.time')}</label>
+                  <label className="sr-only" htmlFor="edit-time">{t('calendar.time')}</label>
                   <input
+                    id="edit-time"
                     type="time"
                     value={editingEvent.time}
                     onChange={(e) => setEditingEvent({ ...editingEvent, time: e.target.value })}
@@ -726,7 +732,7 @@ export default function Calendar() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('calendar.description')}</label>
                 <textarea
                   value={editingEvent.description}
                   onChange={(e) => setEditingEvent({ ...editingEvent, description: e.target.value })}
@@ -737,7 +743,7 @@ export default function Calendar() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Event Color</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('calendar.eventColor')}</label>
                 <div className="grid grid-cols-4 gap-2">
                   {EVENT_COLORS.map(color => (
                     <button
@@ -764,15 +770,17 @@ export default function Calendar() {
                   onChange={(e) => setEditingEvent({ ...editingEvent, reminder: e.target.checked })}
                   className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
                 />
-                <label htmlFor="edit-reminder" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Set reminder
+                  <label htmlFor="edit-reminder" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {t('calendar.setReminder')}
                 </label>
               </div>
 
               {editingEvent.reminder && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reminder Time</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('calendar.reminderTime')}</label>
+                  <label className="sr-only" htmlFor="edit-reminder-time-select">{t('calendar.reminderTime')}</label>
                   <select
+                    id="edit-reminder-time-select"
                     value={editingEvent.reminderMinutes}
                     onChange={(e) => setEditingEvent({ ...editingEvent, reminderMinutes: parseInt(e.target.value) })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
@@ -789,7 +797,7 @@ export default function Calendar() {
               {editingEvent.reminder && notificationPermission !== 'granted' && (
                 <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                   <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                    Please enable notifications to receive reminders.
+                    {t('calendar.enableNotifications')}
                   </p>
                 </div>
               )}
@@ -803,13 +811,13 @@ export default function Calendar() {
                 }}
                 className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors whitespace-nowrap"
               >
-                Cancel
+                {t('calendar.cancel')}
               </button>
               <button
                 onClick={handleUpdateEvent}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors whitespace-nowrap"
               >
-                Update Event
+                {t('calendar.updateEvent')}
               </button>
             </div>
           </div>

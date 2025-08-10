@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase, authHelpers } from '../lib/supabase';
+import { useI18n } from './I18nProvider';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -10,6 +11,7 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
+  const { t } = useI18n();
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
@@ -217,19 +219,12 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
             <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="ri-mail-send-line w-8 h-8 text-green-600 dark:text-green-400"></i>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-              Verifique seu Email
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Enviamos um link de confirmação para <strong>{formData.email}</strong>
-            </p>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{t('auth.verify.title')}</h2>
+            <p className="text-gray-600 dark:text-gray-400">{t('auth.verify.sentTo')} <strong>{formData.email}</strong></p>
           </div>
 
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-            <p className="text-blue-800 dark:text-blue-200 text-sm">
-              Por favor, verifique seu email e clique no link de confirmação para ativar sua conta. 
-              Depois disso, você poderá fazer login para acessar seu workspace.
-            </p>
+            <p className="text-blue-800 dark:text-blue-200 text-sm">{t('auth.verify.instructions')}</p>
           </div>
 
           <div className="space-y-3">
@@ -238,14 +233,14 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
               disabled={isLoading}
               className="w-full px-4 py-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors disabled:opacity-50"
             >
-              {isLoading ? 'Reenviando...' : 'Reenviar email de confirmação'}
+              {isLoading ? t('auth.verify.resending') : t('auth.verify.resend')}
             </button>
             
             <button
               onClick={handleBackToLogin}
               className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
             >
-              Voltar ao Login
+              {t('auth.backToLogin')}
             </button>
           </div>
         </div>
@@ -261,14 +256,9 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
             <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="ri-lock-password-line w-8 h-8 text-blue-600 dark:text-blue-400"></i>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
-              {resetEmailSent ? 'Email Enviado' : 'Redefinir Senha'}
-            </h2>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{resetEmailSent ? t('auth.reset.emailSentTitle') : t('auth.reset.title')}</h2>
             <p className="text-gray-600 dark:text-gray-400">
-              {resetEmailSent 
-                ? 'Enviamos um link para redefinir sua senha'
-                : 'Digite seu email para receber um link de redefinição'
-              }
+              {resetEmailSent ? t('auth.reset.descSent') : t('auth.reset.descEnter')}
             </p>
           </div>
 
@@ -276,7 +266,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Email
+                  {t('auth.email')}
                 </label>
                 <input
                   type="email"
@@ -287,7 +277,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
                   className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
                     errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                   }`}
-                  placeholder="Digite seu email"
+                  placeholder={t('auth.enterEmail')}
                 />
                 {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
               </div>
@@ -303,7 +293,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
                 disabled={isLoading}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
               >
-                {isLoading ? 'Enviando...' : 'Enviar Link de Redefinição'}
+                {isLoading ? t('auth.reset.sending') : t('auth.reset.sendLink')}
               </button>
             </form>
           ) : (
@@ -318,7 +308,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
             onClick={handleBackToLogin}
             className="w-full px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
           >
-            Voltar ao Login
+            {t('auth.backToLogin')}
           </button>
         </div>
       </div>
@@ -329,20 +319,16 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 p-8 rounded-xl w-full max-w-md mx-4">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-            {isLogin ? 'Bem-vindo de Volta' : 'Criar Conta'}
-          </h2>
+          <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">{isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}</h2>
           <p className="text-gray-600 dark:text-gray-400">
-            {isLogin ? 'Entre para acessar seu workspace' : 'Junte-se ao Scribe para começar'}
+            {isLogin ? t('auth.subtitleLogin') : t('auth.subtitleSignup')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {!isLogin && (
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Nome Completo
-              </label>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('auth.fullName')}</label>
               <input
                 type="text"
                 id="name"
@@ -352,16 +338,14 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
                 className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
                   errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
-                placeholder="Digite seu nome completo"
+                placeholder={t('auth.enterFullName')}
               />
               {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
             </div>
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Email
-            </label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('auth.email')}</label>
             <input
               type="email"
               id="email"
@@ -371,15 +355,13 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
                 errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
               }`}
-              placeholder="Digite seu email"
+              placeholder={t('auth.enterEmail')}
             />
             {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Senha
-            </label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('auth.password')}</label>
             <input
               type="password"
               id="password"
@@ -389,16 +371,14 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
                 errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
               }`}
-              placeholder="Digite sua senha"
+              placeholder={t('auth.enterPassword')}
             />
             {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
           </div>
 
           {!isLogin && (
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Confirmar Senha
-              </label>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{t('auth.confirmPassword')}</label>
               <input
                 type="password"
                 id="confirmPassword"
@@ -408,7 +388,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
                 className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
                   errors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
-                placeholder="Confirme sua senha"
+                placeholder={t('auth.enterConfirmPassword')}
               />
               {errors.confirmPassword && <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>}
             </div>
@@ -428,7 +408,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
             {isLoading ? (
               <i className="ri-loader-4-line w-5 h-5 flex items-center justify-center animate-spin"></i>
             ) : (
-              <span>{isLogin ? 'Entrar' : 'Criar Conta'}</span>
+              <span>{isLogin ? t('auth.submitLogin') : t('auth.submitSignup')}</span>
             )}
           </button>
         </form>
@@ -439,7 +419,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
               <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">Ou continue com</span>
+              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">{t('auth.orContinueWith')}</span>
             </div>
           </div>
 
@@ -450,7 +430,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
               className="w-full inline-flex justify-center py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 whitespace-nowrap"
             >
               <i className="ri-google-fill w-5 h-5 flex items-center justify-center text-red-500"></i>
-              <span className="ml-2">Google</span>
+              <span className="ml-2">{t('auth.google')}</span>
             </button>
 
             <button
@@ -459,14 +439,14 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
               className="w-full inline-flex justify-center py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 whitespace-nowrap"
             >
               <i className="ri-github-fill w-5 h-5 flex items-center justify-center text-gray-900 dark:text-white"></i>
-              <span className="ml-2">GitHub</span>
+              <span className="ml-2">{t('auth.github')}</span>
             </button>
           </div>
         </div>
 
         <div className="mt-8 text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            {isLogin ? "Não tem uma conta? " : "Já tem uma conta? "}
+            {isLogin ? t('auth.noAccount') : t('auth.haveAccount')}
             <button
               onClick={() => {
                 setIsLogin(!isLogin);
@@ -480,7 +460,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
               }}
               className="text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
             >
-              {isLogin ? 'Criar conta' : 'Entrar'}
+              {isLogin ? t('auth.createAccountAction') : t('auth.loginAction')}
             </button>
           </p>
         </div>
@@ -491,7 +471,7 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
               onClick={handlePasswordReset}
               className="text-sm text-blue-600 hover:text-blue-700 font-medium whitespace-nowrap"
             >
-              Esqueceu sua senha?
+              {t('auth.forgotPassword')}
             </button>
           </div>
         )}
@@ -499,6 +479,8 @@ export default function AuthModal({ onClose, onLogin }: AuthModalProps) {
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          title={t('common.close')}
+          aria-label={t('common.close')}
         >
           <i className="ri-close-line w-5 h-5 flex items-center justify-center text-gray-500"></i>
         </button>

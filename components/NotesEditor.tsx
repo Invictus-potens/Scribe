@@ -687,7 +687,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Negrito"
+          title={t('editor.bold')}
         >
           <i className="ri-bold w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -698,7 +698,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Itálico"
+          title={t('editor.italic')}
         >
           <i className="ri-italic w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -709,7 +709,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Sublinhado"
+          title={t('editor.underline')}
         >
           <i className="ri-underline w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -720,7 +720,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Tachado"
+          title={t('editor.strike')}
         >
           <i className="ri-strikethrough w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -735,7 +735,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Título 1"
+          title={t('editor.heading1')}
         >
           <i className="ri-h-1 w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -746,7 +746,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Título 2"
+          title={t('editor.heading2')}
         >
           <i className="ri-h-2 w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -757,7 +757,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Título 3"
+          title={t('editor.heading3')}
         >
           <i className="ri-h-3 w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -772,7 +772,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Lista não ordenada"
+          title={t('editor.bulletList')}
         >
           <i className="ri-list-unordered w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -783,7 +783,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Lista ordenada"
+          title={t('editor.orderedList')}
         >
           <i className="ri-list-ordered w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -794,7 +794,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Lista de tarefas"
+          title={t('editor.taskList')}
         >
           <i className="ri-checkbox-line w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -809,7 +809,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Alinhar à esquerda"
+          title={t('editor.alignLeft')}
         >
           <i className="ri-align-left w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -820,7 +820,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Centralizar"
+          title={t('editor.alignCenter')}
         >
           <i className="ri-align-center w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -831,7 +831,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Alinhar à direita"
+          title={t('editor.alignRight')}
         >
           <i className="ri-align-right w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -846,7 +846,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Código inline"
+          title={t('editor.codeInline')}
         >
           <i className="ri-code-s-slash-line w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -857,27 +857,27 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Bloco de código"
+          title={t('editor.codeBlock')}
         >
           <i className="ri-code-box-line w-4 h-4 flex items-center justify-center"></i>
         </button>
         <button
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400"
-          title="Linha horizontal"
+          title={t('editor.horizontalRule')}
         >
           <i className="ri-separator w-4 h-4 flex items-center justify-center"></i>
         </button>
         <div className="w-px h-6 bg-gray-300 dark:bg-gray-600"></div>
         <button
           onClick={() => {
-            const url = prompt('Digite a URL da imagem:');
+            const url = prompt(t('editor.prompt.imageUrl'));
             if (url) {
               editor.chain().focus().setImage({ src: url }).run();
             }
           }}
           className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400"
-          title="Inserir imagem"
+          title={t('editor.insertImage')}
         >
           <i className="ri-image-line w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -887,25 +887,25 @@ export default function NotesEditor({
         {/* Advanced Text Formatting */}
         <button
           onClick={() => {
-            const color = prompt('Digite a cor (ex: #ff0000, red, blue):');
+            const color = prompt(t('editor.prompt.textColor'));
             if (color && editor) {
               editor.chain().focus().setColor(color).run();
             }
           }}
           className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400"
-          title="Cor do texto"
+          title={t('editor.textColor')}
         >
           <i className="ri-palette-line w-4 h-4 flex items-center justify-center"></i>
         </button>
         <button
           onClick={() => {
-            const font = prompt('Digite a fonte (ex: Arial, Times New Roman, Courier):');
+            const font = prompt(t('editor.prompt.fontFamily'));
             if (font && editor) {
               editor.chain().focus().setFontFamily(font).run();
             }
           }}
           className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-600 dark:text-gray-400"
-          title="Família da fonte"
+          title={t('editor.fontFamily')}
         >
           <i className="ri-font-size w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -916,7 +916,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Subscrito"
+          title={t('editor.subscript')}
         >
           <i className="ri-subscript w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -927,13 +927,13 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Sobrescrito"
+          title={t('editor.superscript')}
         >
           <i className="ri-superscript w-4 h-4 flex items-center justify-center"></i>
         </button>
         <button
           onClick={() => {
-            const color = prompt('Digite a cor do destaque (ex: #ffff00, yellow, orange):');
+            const color = prompt(t('editor.prompt.highlightColor'));
             if (color && editor) {
               editor.chain().focus().toggleHighlight({ color }).run();
             }
@@ -943,7 +943,7 @@ export default function NotesEditor({
               ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400'
               : 'hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-400'
           }`}
-          title="Destacar texto"
+          title={t('editor.highlight')}
         >
           <i className="ri-mark-pen-line w-4 h-4 flex items-center justify-center"></i>
         </button>
@@ -956,7 +956,7 @@ export default function NotesEditor({
           <span className="font-mono">
             {(editor?.storage.characterCount.characters() || 0).toLocaleString('pt-BR')}
           </span>
-          <span className="text-gray-400 dark:text-gray-500">caracteres</span>
+          <span className="text-gray-400 dark:text-gray-500">{t('editor.characters')}</span>
         </div>
       </div>
 
@@ -972,12 +972,12 @@ export default function NotesEditor({
 
           <div className="p-4 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Tags</h4>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('editor.tags')}</h4>
               <button
                 onClick={() => setShowTagInput(true)}
                 className="text-blue-600 hover:text-blue-700 text-sm font-medium whitespace-nowrap"
               >
-                Adicionar Tag
+                {t('editor.addTag')}
               </button>
             </div>
 
@@ -988,11 +988,11 @@ export default function NotesEditor({
                   className="inline-flex items-center space-x-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full text-sm"
                 >
                   <span>{tag}</span>
-                  <button
-                    onClick={() => handleRemoveTag(tag)}
-                    className="hover:text-blue-600 dark:hover:text-blue-400"
-                    title={`Remover tag "${tag}"`}
-                  >
+                   <button
+                     onClick={() => handleRemoveTag(tag)}
+                     className="hover:text-blue-600 dark:hover:text-blue-400"
+                     title={`${t('editor.removeTag')} "${tag}"`}
+                   >
                     <i className="ri-close-line w-3 h-3 flex items-center justify-center"></i>
                   </button>
                 </span>
@@ -1006,14 +1006,14 @@ export default function NotesEditor({
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-                  placeholder="Nome da tag"
+                  placeholder={t('editor.tagNamePlaceholder')}
                   className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
                 />
                 <button
                   onClick={handleAddTag}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors whitespace-nowrap"
                 >
-                  Adicionar
+                  {t('editor.add')}
                 </button>
                 <button
                   onClick={() => {
@@ -1022,7 +1022,7 @@ export default function NotesEditor({
                   }}
                   className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-2 py-2 whitespace-nowrap"
                 >
-                  Cancelar
+                  {t('editor.cancel')}
                 </button>
               </div>
             )}
@@ -1031,8 +1031,8 @@ export default function NotesEditor({
 
         {showSplitView && (
           <div className="w-1/2 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
-              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Comparar com outra nota</h4>
+          <div className="p-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex-shrink-0">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('editor.compareHeader')}</h4>
             </div>
             <div className="flex-1 p-4 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 overflow-y-auto">
               {secondNote ? (
@@ -1042,7 +1042,7 @@ export default function NotesEditor({
                     <button
                       onClick={() => setSecondNote(null)}
                       className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                      title="Fechar comparação"
+                    title={t('editor.closeCompare')}
                     >
                       <i className="ri-close-line w-4 h-4"></i>
                     </button>
@@ -1054,9 +1054,7 @@ export default function NotesEditor({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">
-                    Selecione outra nota para comparar com a nota atual
-                  </p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">{t('editor.compareInstruction')}</p>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {notes.map(note => (
                       note.id !== selectedNote?.id && (
@@ -1070,16 +1068,16 @@ export default function NotesEditor({
                           </h6>
                           <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
                             {(() => {
-                              if (!note.content) return 'Sem conteúdo';
+                              if (!note.content) return t('editor.noContent');
                               const tmp = document.createElement('div');
                               tmp.innerHTML = note.content;
                               return tmp.textContent || tmp.innerText || 'Sem conteúdo';
                             })()}
                           </p>
                           <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs text-gray-500">
-                              {new Date(note.updated_at || '').toLocaleDateString()}
-                            </span>
+                             <span className="text-xs text-gray-500">
+                               {new Date(note.updated_at || '').toLocaleDateString(undefined, { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                             </span>
                             {note.folder && (
                               <span className="text-xs bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
                                 {note.folder}

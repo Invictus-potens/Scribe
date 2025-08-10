@@ -32,8 +32,10 @@ import AuthModal from '../components/AuthModal';
 import ResponsiveDebug from '../components/ResponsiveDebug';
 import DragOverlay from '../components/DragOverlay';
 import CompanyManager from '../components/CompanyManager';
+import { useI18n } from '../components/I18nProvider';
 
 export default function Home() {
+  const { t } = useI18n();
   const [activeView, setActiveView] = useState('notes');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,6 +49,12 @@ export default function Home() {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const saveCurrentNoteRef = useRef<() => Promise<void> | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [autoRefreshMs, setAutoRefreshMs] = useState<number>(() => {
+    if (typeof window === 'undefined') return 30000;
+    const raw = localStorage.getItem('settings:autoRefreshMs');
+    const parsed = raw ? Number(raw) : 30000;
+    return Number.isFinite(parsed) ? parsed : 30000;
+  });
 
   // Hook personalizado para gerenciar notas com auto-update
   const {
@@ -57,7 +65,7 @@ export default function Home() {
     reorderNotes,
     refresh: refreshNotes,
   } = useNotesManager({
-    autoRefreshInterval: 30000, // Auto-refresh a cada 30 segundos
+    autoRefreshInterval: autoRefreshMs,
     onNotesLoaded: (loadedNotes) => {
       console.log('Home: notas carregadas via hook:', loadedNotes.length);
     }
@@ -131,6 +139,15 @@ export default function Home() {
       document.documentElement.classList.remove('dark');
       localStorage.setItem('theme', 'light');
     }
+  };
+
+  const updateAutoRefresh = (ms: number) => {
+    setAutoRefreshMs(ms);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('settings:autoRefreshMs', String(ms));
+      }
+    } catch {}
   };
 
   const handleLogin = () => {
@@ -271,12 +288,8 @@ export default function Home() {
           <div className="w-responsive-xl h-responsive-xl bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <i className="ri-loader-4-line w-responsive-lg h-responsive-lg text-white animate-spin"></i>
           </div>
-          <h2 className="text-responsive-2xl font-bold text-gray-800 dark:text-white mb-2">
-            Carregando...
-          </h2>
-          <p className="text-responsive-base text-gray-600 dark:text-gray-400">
-            Preparando seu workspace
-          </p>
+          <h2 className="text-responsive-2xl font-bold text-gray-800 dark:text-white mb-2">{t('loading.title')}</h2>
+          <p className="text-responsive-base text-gray-600 dark:text-gray-400">{t('loading.subtitle')}</p>
         </div>
       </div>
     );
@@ -287,12 +300,12 @@ export default function Home() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center content-padding">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-responsive-5xl font-bold text-gray-800 dark:text-white mb-4">Scribe</h1>
-          <p className="text-responsive-xl text-gray-600 dark:text-gray-300 mb-8">Seu Workspace de Produtividade Definitivo</p>
+          <p className="text-responsive-xl text-gray-600 dark:text-gray-300 mb-8">{t('unauth.subtitle')}</p>
           <button
             onClick={() => setShowAuthModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-responsive-xl py-responsive-md rounded-lg font-semibold transition-colors whitespace-nowrap text-responsive-lg"
           >
-            Começar
+            {t('unauth.cta')}
           </button>
         </div>
         {showAuthModal && (
@@ -312,6 +325,8 @@ export default function Home() {
         setActiveView={setActiveView}
         darkMode={darkMode}
         toggleTheme={toggleTheme}
+        autoRefreshMs={autoRefreshMs}
+        setAutoRefreshMs={updateAutoRefresh}
         onLogout={handleLogout}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -401,7 +416,7 @@ export default function Home() {
               onClick={() => window.location.reload()}
               className="ml-2 text-xs underline hover:no-underline"
             >
-              Recarregar
+              {t('errorBanner.reload')}
             </button>
           </div>
         </div>
@@ -415,14 +430,10 @@ export default function Home() {
               <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900 rounded-full flex items-center justify-center mr-3">
                 <i className="ri-alert-line w-5 h-5 text-yellow-600 dark:text-yellow-400"></i>
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                Mudanças Não Salvas
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{t('unsaved.title')}</h3>
             </div>
             
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Você tem mudanças não salvas nesta nota. O que você gostaria de fazer?
-            </p>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">{t('unsaved.message')}</p>
             
             <div className="flex flex-col space-y-3">
               <button
@@ -443,7 +454,7 @@ export default function Home() {
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
-                Salvar e Continuar
+                {t('unsaved.saveAndContinue')}
               </button>
               <button
                 onClick={() => {
@@ -456,7 +467,7 @@ export default function Home() {
                 }}
                 className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg font-medium transition-colors"
               >
-                Descartar Mudanças
+                {t('unsaved.discard')}
               </button>
               <button
                 onClick={() => {
@@ -465,7 +476,7 @@ export default function Home() {
                 }}
                 className="w-full text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-4 py-2 font-medium transition-colors"
               >
-                Cancelar
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -476,7 +487,7 @@ export default function Home() {
       {notesLoading && (
         <div className="fixed top-20 right-4 bg-blue-500 text-white px-3 py-1 rounded-full shadow-lg z-40 flex items-center space-x-2">
           <i className="ri-loader-4-line w-3 h-3 animate-spin"></i>
-          <span className="text-xs">Sincronizando...</span>
+          <span className="text-xs">{t('sync.indicator')}</span>
         </div>
       )}
       

@@ -26,6 +26,7 @@ import { notesHelpers, authHelpers, templatesHelpers } from '../lib/supabase';
 import ConfirmDialog from './ConfirmDialog';
 import { useToast } from './ToastProvider';
 import DOMPurify from 'dompurify';
+import { useI18n } from './I18nProvider';
 
 // Verificar se estamos no lado do cliente
 const isClient = typeof window !== 'undefined';
@@ -80,6 +81,7 @@ export default function NotesEditor({
 
   const toast = useToast();
   const dompurifyRef = useRef<typeof DOMPurify | null>(null);
+  const { t } = useI18n();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -250,7 +252,7 @@ export default function NotesEditor({
         const { data, error } = await notesHelpers.updateNote(selectedNote.id, updatedNote);
         if (error) {
           console.error('Error updating note:', error);
-          toast.error(`Erro ao atualizar a nota: ${error.message}`);
+          toast.error(`${t('error.updateNote')}: ${error.message}`);
           return;
         }
         setSelectedNote(data);
@@ -270,7 +272,7 @@ export default function NotesEditor({
         });
         if (error) {
           console.error('Error creating note:', error);
-          toast.error(`Erro ao criar a nota: ${error.message}`);
+          toast.error(`${t('error.createNote')}: ${error.message}`);
           return;
         }
         setSelectedNote(data);
@@ -281,7 +283,7 @@ export default function NotesEditor({
       }
     } catch (error) {
       console.error('Error saving note:', error);
-      toast.error('Erro inesperado ao salvar a nota');
+      toast.error(t('error.unexpectedSave'));
     }
   }, [selectedNote, editor, isPinned, isFavorite, isArchived, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved, title, tags]);
 
@@ -397,7 +399,7 @@ export default function NotesEditor({
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <i className="ri-loader-4-line w-4 h-4 text-white animate-spin"></i>
           </div>
-          <p className="text-gray-500 dark:text-gray-400">Carregando editor...</p>
+          <p className="text-gray-500 dark:text-gray-400">{t('editor.loading')}</p>
         </div>
       </div>
     );
@@ -412,7 +414,7 @@ export default function NotesEditor({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="text-xl font-semibold bg-transparent border-none focus:outline-none text-gray-800 dark:text-gray-200 flex-1"
-            placeholder="Título da nota..."
+            placeholder={t('editor.titlePlaceholder')}
           />
           {hasUnsavedChanges && (
             <span className="text-orange-500 text-sm ml-2">*</span>
@@ -428,7 +430,7 @@ export default function NotesEditor({
                 ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' 
                 : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
             }`}
-            title={isPinned ? "Desafixar nota" : "Fixar nota"}
+            title={isPinned ? t('editor.unpin') : t('editor.pin')}
           >
             <i className={`ri-pushpin-${isPinned ? 'fill' : 'line'} w-4 h-4 flex items-center justify-center`}></i>
           </button>
@@ -444,11 +446,11 @@ export default function NotesEditor({
                     throw error;
                   }
                   setHasUnsavedChanges(false);
-                  toast.success(newFav ? 'Adicionada aos favoritos' : 'Removida dos favoritos');
+                  toast.success(newFav ? t('toast.addedToFavorites') : t('toast.removedFromFavorites'));
                 } catch (err: any) {
                   console.error('Error toggling favorite:', err);
                   setIsFavorite(prev);
-                  toast.error(`Erro ao atualizar favorito: ${err?.message || 'Erro desconhecido'}`);
+                  toast.error(`${t('error.updateFavorite')}: ${err?.message || t('error.unknown')}`);
                 }
               } else {
                 setHasUnsavedChanges(true);
@@ -459,7 +461,7 @@ export default function NotesEditor({
                 ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200' 
                 : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
             }`}
-            title={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+            title={isFavorite ? t('editor.unfavorite') : t('editor.favorite')}
           >
             <i className={`ri-star-${isFavorite ? 'fill' : 'line'} w-4 h-4 flex items-center justify-center`}></i>
           </button>
@@ -475,11 +477,11 @@ export default function NotesEditor({
                     throw error;
                   }
                   setHasUnsavedChanges(false);
-                  toast.success(newArchived ? 'Nota arquivada' : 'Nota desarquivada');
+                  toast.success(newArchived ? t('toast.archived') : t('toast.unarchived'));
                 } catch (err: any) {
                   console.error('Error toggling archived:', err);
                   setIsArchived(prev);
-                  toast.error(`Erro ao atualizar arquivamento: ${err?.message || 'Erro desconhecido'}`);
+                  toast.error(`${t('error.updateArchived')}: ${err?.message || t('error.unknown')}`);
                 }
               } else {
                 setHasUnsavedChanges(true);
@@ -490,7 +492,7 @@ export default function NotesEditor({
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100' 
                 : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
             }`}
-            title={isArchived ? 'Desarquivar' : 'Arquivar'}
+            title={isArchived ? t('editor.unarchive') : t('editor.archive')}
           >
             <i className="ri-archive-line w-4 h-4 flex items-center justify-center"></i>
           </button>
@@ -500,7 +502,7 @@ export default function NotesEditor({
           <button
             onClick={() => setShowSplitView(!showSplitView)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            title="Alternar visualização dividida"
+             title={t('editor.toggleSplit')}
           >
             <i className="ri-layout-column-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
           </button>
@@ -509,7 +511,7 @@ export default function NotesEditor({
             <button
               onClick={() => setShowTemplates(s => !s)}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title="Modelos"
+              title={t('editor.templates')}
             >
               <i className="ri-file-copy-2-line w-4 h-4 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
             </button>
@@ -529,7 +531,7 @@ export default function NotesEditor({
                 >
                   Salvar como modelo
                 </button>
-                <div className="text-xs text-gray-500 dark:text-gray-400 px-2 mt-1">Modelos</div>
+                   <div className="text-xs text-gray-500 dark:text-gray-400 px-2 mt-1">{t('editor.templates')}</div>
                 {templates.length === 0 && (
                   <div className="px-3 py-2 text-sm text-gray-500">Nenhum modelo</div>
                 )}
@@ -577,7 +579,7 @@ export default function NotesEditor({
                   }}
                   className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
-                  Exportar Markdown
+                   {t('editor.exportMarkdown')}
                 </button>
                 <button
                   onClick={() => {
@@ -589,7 +591,7 @@ export default function NotesEditor({
                   }}
                   className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
-                  Exportar HTML
+                   {t('editor.exportHtml')}
                 </button>
                 <button
                   onClick={() => {
@@ -601,7 +603,7 @@ export default function NotesEditor({
                   }}
                   className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
-                  Exportar PDF
+                   {t('editor.exportPdf')}
                 </button>
                 <button
                   onClick={async () => {
@@ -621,11 +623,11 @@ export default function NotesEditor({
                   }}
                   className="w-full text-left px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                 >
-                  Exportar ZIP (MD+HTML)
+                   {t('editor.exportZip')}
                 </button>
                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-2"></div>
                 <label className="block w-full px-3 py-2 text-sm rounded hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-gray-700 dark:text-gray-300">
-                  Importar Markdown/HTML
+                  {t('editor.importMdHtml')}
                   <input
                     type="file"
                     accept=".md,.markdown,.html,.htm,text/markdown,text/html"
@@ -657,7 +659,7 @@ export default function NotesEditor({
                 checkUnsavedChanges(() => setShowDeleteConfirm(true));
               }}
               className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900 transition-colors text-red-600 dark:text-red-400"
-              title="Delete Note"
+             title={t('editor.delete')}
             >
               <i className="ri-delete-bin-line w-4 h-4 flex items-center justify-center"></i>
             </button>
@@ -670,7 +672,7 @@ export default function NotesEditor({
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
           >
-            {hasUnsavedChanges ? 'Salvar*' : 'Salvar'}
+            {hasUnsavedChanges ? t('editor.saveWithStar') : t('editor.save')}
           </button>
         </div>
       </div>
@@ -1180,10 +1182,10 @@ export default function NotesEditor({
       {/* Confirmar deleção */}
       <ConfirmDialog
         isOpen={showDeleteConfirm}
-        title="Deletar nota"
-        description="Tem certeza que deseja deletar esta nota? Esta ação não pode ser desfeita."
-        confirmText="Deletar"
-        cancelText="Cancelar"
+        title={t('confirm.deleteNote.title')}
+        description={t('confirm.deleteNote.description')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         loading={isDeleting}
         onCancel={() => setShowDeleteConfirm(false)}
         onConfirm={async () => {
@@ -1193,18 +1195,18 @@ export default function NotesEditor({
             const { error } = await notesHelpers.deleteNote(selectedNote.id);
             if (error) {
               console.error('Error deleting note:', error);
-              toast.error(`Erro ao deletar a nota: ${error.message}`);
+              toast.error(`${t('error.deleteNote')}: ${error.message}`);
               return;
             }
             setShowDeleteConfirm(false);
             setSelectedNote(null);
-            toast.success('Nota deletada');
+            toast.success(t('toast.noteDeleted'));
             if (onNoteSaved) {
               onNoteSaved();
             }
           } catch (e) {
             console.error('Error deleting note:', e);
-            toast.error('Erro inesperado ao deletar a nota');
+            toast.error(t('error.unexpectedDeleteNote'));
           } finally {
             setIsDeleting(false);
           }

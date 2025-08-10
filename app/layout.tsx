@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Pacifico } from "next/font/google";
 import "./globals.css";
 import "./drag-drop.css";
 import { ToastProvider } from "../components/ToastProvider";
+import { I18nProvider } from "../components/I18nProvider";
 
 const pacifico = Pacifico({
   weight: '400',
@@ -36,9 +37,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable} antialiased`}
       >
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <I18nProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </I18nProvider>
       </body>
     </html>
   );

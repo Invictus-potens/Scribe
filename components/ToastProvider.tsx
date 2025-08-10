@@ -30,6 +30,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const show = useCallback((text: string, type: ToastType = 'info', durationMs = 3000) => {
+    // Do Not Disturb: suppress toasts when enabled
+    try {
+      if (typeof window !== 'undefined') {
+        const dnd = localStorage.getItem('settings:dnd') === 'true';
+        if (dnd) return;
+      }
+    } catch {}
     const id = Math.random().toString(36).slice(2);
     setToasts(prev => [...prev, { id, text, type, durationMs }]);
     if (durationMs > 0) {

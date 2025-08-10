@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useI18n } from './I18nProvider';
 import { foldersHelpers, notesHelpers, authHelpers, Note, Folder } from '../lib/supabase';
 import DraggableNotesList from './DraggableNotesList';
 import { useDroppable } from '@dnd-kit/core';
@@ -156,6 +157,7 @@ export default function Sidebar({
   onCheckUnsavedChanges,
   notes = []
 }: SidebarProps) {
+  const { t } = useI18n();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -429,7 +431,7 @@ export default function Sidebar({
           <button
             onClick={handleNewNote}
             className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
-            title="Nova nota"
+            title={t('sidebar.newNote')}
           >
             <i className="ri-add-line w-5 h-5"></i>
           </button>
@@ -440,49 +442,53 @@ export default function Sidebar({
           className="w-full p-2 text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center justify-center space-x-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"
         >
           <i className="ri-folder-add-line w-4 h-4"></i>
-          <span>Nova Pasta</span>
+          <span>{t('sidebar.newFolder')}</span>
         </button>
         <div className="mt-3 flex items-center justify-between gap-2">
           <button
             onClick={() => setShowFavorites(v => !v)}
             className={`flex-1 p-2 text-xs rounded-lg transition-colors ${showFavorites ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
-            title="Filtrar favoritos"
+            title={t('sidebar.filterFavorites')}
           >
             <i className="ri-star-fill mr-1"></i>
-            Favoritos
+            {t('sidebar.favorites')}
           </button>
           <button
             onClick={() => setShowArchived(v => !v)}
             className={`flex-1 p-2 text-xs rounded-lg transition-colors ${showArchived ? 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-100' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
-            title="Mostrar arquivadas"
+            title={t('sidebar.showArchived')}
           >
             <i className="ri-archive-line mr-1"></i>
-            Arquivadas
+            {t('sidebar.archived')}
           </button>
           <button
             onClick={() => setOnlyPinned(v => !v)}
             className={`flex-1 p-2 text-xs rounded-lg transition-colors ${onlyPinned ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}
-            title="Somente fixadas"
+            title={t('sidebar.onlyPinned')}
           >
             <i className="ri-pushpin-2-line mr-1"></i>
-            Fixadas
+            {t('sidebar.pinned')}
           </button>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <input
             type="text"
-            placeholder="Tags (separe por vírgula)"
+            placeholder={t('sidebar.tagsPlaceholder')}
             value={tagQuery}
             onChange={e => setTagQuery(e.target.value)}
             className="col-span-2 px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300"
           />
+          <label className="sr-only" htmlFor="date-from">Data inicial</label>
           <input
+            id="date-from"
             type="date"
             value={dateFrom}
             onChange={e => setDateFrom(e.target.value)}
             className="px-3 py-2 text-xs bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300"
           />
+          <label className="sr-only" htmlFor="date-to">Data final</label>
           <input
+            id="date-to"
             type="date"
             value={dateTo}
             onChange={e => setDateTo(e.target.value)}
@@ -512,7 +518,7 @@ export default function Sidebar({
           {folders.length > 0 && (
             <div className="px-4 py-2">
               <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                Pastas
+                {t('sidebar.folders')}
               </h4>
             </div>
           )}
@@ -541,7 +547,7 @@ export default function Sidebar({
           <div className="px-4 mb-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                {selectedFolder === 'all' ? 'Todas as Notas' : `${selectedFolder}`}
+                {selectedFolder === 'all' ? t('sidebar.allNotes') : `${selectedFolder}`}
               </h4>
               <span className="text-xs text-gray-400 dark:text-gray-500">
                 {filteredNotes.length}
@@ -567,15 +573,15 @@ export default function Sidebar({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4 shadow-2xl">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-              Nova Pasta
+              {t('sidebar.newFolder')}
             </h3>
             
             <input
               type="text"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleNewFolder()}
-              placeholder="Nome da pasta"
+              onKeyDown={(e) => e.key === 'Enter' && handleNewFolder()}
+              placeholder={t('sidebar.folderNamePlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 mb-4"
               autoFocus
             />
@@ -586,7 +592,7 @@ export default function Sidebar({
                 disabled={!newFolderName.trim()}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
               >
-                Criar
+                {t('sidebar.create')}
               </button>
               <button
                 onClick={() => {
@@ -595,7 +601,7 @@ export default function Sidebar({
                 }}
                 className="flex-1 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 px-4 py-2 font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
-                Cancelar
+                {t('sidebar.cancel')}
               </button>
             </div>
           </div>

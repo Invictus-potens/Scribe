@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useI18n } from './I18nProvider';
 import { authHelpers } from '../lib/supabase';
 import { companyHelpers, type CompanyMember } from '../lib/companyHelpers';
 
@@ -10,6 +11,8 @@ interface HeaderProps {
   setActiveView: (view: string) => void;
   darkMode: boolean;
   toggleTheme: () => void;
+  autoRefreshMs?: number;
+  setAutoRefreshMs?: (ms: number) => void;
   onLogout: () => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
@@ -20,12 +23,16 @@ export default function Header({
   setActiveView, 
   darkMode, 
   toggleTheme, 
+  autoRefreshMs,
+  setAutoRefreshMs,
   onLogout,
   searchTerm,
   setSearchTerm 
 }: HeaderProps) {
+  const { t, lang, setLang } = useI18n();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [invitations, setInvitations] = useState<CompanyMember[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [processing, setProcessing] = useState<Record<string, 'accept' | 'decline' | null>>({});
@@ -151,6 +158,8 @@ export default function Header({
                   <button
                     onClick={() => setShowNotifications(false)}
                     className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    title="Fechar notificações"
+                    aria-label="Fechar notificações"
                   >
                     <i className="ri-close-line w-4 h-4"></i>
                   </button>
@@ -183,6 +192,78 @@ export default function Header({
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Settings */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSettings((v) => !v)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              title="Configurações"
+            >
+              <i className="ri-settings-3-line w-5 h-5 flex items-center justify-center text-gray-600 dark:text-gray-400"></i>
+            </button>
+            {showSettings && (
+              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="font-medium text-gray-800 dark:text-gray-200">{t('settings.title')}</span>
+                  <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" title={t('settings.close')} aria-label={t('settings.close')}>
+                    <i className="ri-close-line w-4 h-4"></i>
+                  </button>
+                </div>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700 dark:text-gray-300">{t('settings.darkTheme')}</span>
+                    <button onClick={toggleTheme} className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                      {darkMode ? t('common.active') : t('common.inactive')}
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 mb-1">{t('settings.autoRefresh')}</label>
+                    <label className="sr-only" htmlFor="auto-refresh-select">{t('settings.autoRefresh')}</label>
+                    <select
+                      id="auto-refresh-select"
+                      value={autoRefreshMs ?? 30000}
+                      onChange={(e) => setAutoRefreshMs && setAutoRefreshMs(Number(e.target.value))}
+                      className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-gray-800 dark:text-gray-200"
+                    >
+                      <option value={0}>{t('refresh.off')}</option>
+                      <option value={15000}>{t('refresh.15s')}</option>
+                      <option value={30000}>{t('refresh.30s')}</option>
+                      <option value={60000}>{t('refresh.1m')}</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700 dark:text-gray-300">{t('settings.doNotDisturb')}</span>
+                    <button
+                      onClick={() => {
+                        const key = 'settings:dnd';
+                        const current = localStorage.getItem(key) === 'true';
+                        localStorage.setItem(key, String(!current));
+                        // Quick feedback visual
+                        (e?.target as HTMLElement)?.classList.add('ring-2');
+                        setTimeout(() => (e?.target as HTMLElement)?.classList.remove('ring-2'), 300);
+                      }}
+                      className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                    >
+                      {typeof window !== 'undefined' && localStorage.getItem('settings:dnd') === 'true' ? t('common.active') : t('common.inactive')}
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 mb-1" htmlFor="language-select">{t('settings.language')}</label>
+                    <select
+                      id="language-select"
+                      value={lang}
+                      onChange={(e) => setLang(e.target.value as any)}
+                      className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-gray-800 dark:text-gray-200"
+                    >
+                      <option value="pt-BR">{t('lang.pt')}</option>
+                      <option value="en">{t('lang.en')}</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             )}

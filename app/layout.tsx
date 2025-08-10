@@ -4,6 +4,7 @@ import "./globals.css";
 import "./drag-drop.css";
 import { ToastProvider } from "../components/ToastProvider";
 import { I18nProvider } from "../components/I18nProvider";
+import ThemeInitializer from "../components/ThemeInitializer";
 
 const pacifico = Pacifico({
   weight: '400',
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${pacifico.variable} antialiased`}
       >
+        <ThemeInitializer />
         <I18nProvider>
           <ToastProvider>
             {children}

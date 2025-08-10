@@ -89,6 +89,13 @@ export default function Home() {
       setDarkMode(false);
       document.documentElement.classList.remove('dark');
     }
+    // Apply saved accent theme
+    const savedAccent = localStorage.getItem('settings:accentTheme');
+    const root = document.documentElement;
+    root.classList.remove('theme-accent-orange');
+    if (savedAccent === 'orange') {
+      root.classList.add('theme-accent-orange');
+    }
   }, []);
 
   useEffect(() => {

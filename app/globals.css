@@ -35,6 +35,19 @@ html, body {
 
 /* CSS Variables for responsive design */
 :root {
+  /* Accent palette (default: Blue) */
+  --primary-50: #eff6ff;
+  --primary-100: #dbeafe;
+  --primary-200: #bfdbfe;
+  --primary-300: #93c5fd;
+  --primary-400: #60a5fa;
+  --primary-500: #3b82f6;
+  --primary-600: #2563eb;
+  --primary-700: #1d4ed8;
+  --primary-800: #1e40af;
+  --primary-900: #1e3a8a;
+  --primary-900-20: rgba(30, 58, 138, 0.2);
+
   --sidebar-width-xs: 280px;
   --sidebar-width-sm: 320px;
   --sidebar-width-md: 360px;
@@ -198,6 +211,327 @@ html, body {
   .m-responsive-xl { margin: clamp(2rem, 4vw, 3rem); }
 }
 
+/* Accent theme: Orange (#FF8C00 and similar) */
+.theme-accent-orange {
+  --primary-50: #fff7ed;   /* lightest */
+  --primary-100: #ffedd5;
+  --primary-200: #fed7aa;
+  --primary-300: #fdba74;
+  --primary-400: #fb923c;
+  --primary-500: #ff7a00;  /* near to  FF8C00 but lighter for focus */
+  --primary-600: #ff8c00;  /* requested main */
+  --primary-700: #e67600;  /* slightly darker */
+  --primary-800: #c65f00;
+  --primary-900: #994a00;
+  --primary-900-20: rgba(153, 74, 0, 0.2);
+  /* Warm dark surfaces for orange accent */
+  --surface-900: #121007;
+  --surface-800: #181109;
+  --surface-700: #20170b;
+  --surface-600: #2a1e0e;
+}
+
+/* Remap common Tailwind blue utility classes when orange theme is active */
+.theme-accent-orange .bg-blue-50 { background-color: var(--primary-50) !important; }
+.theme-accent-orange .bg-blue-100 { background-color: var(--primary-100) !important; }
+.theme-accent-orange .bg-blue-200 { background-color: var(--primary-200) !important; }
+.theme-accent-orange .bg-blue-300 { background-color: var(--primary-300) !important; }
+.theme-accent-orange .bg-blue-400 { background-color: var(--primary-400) !important; }
+.theme-accent-orange .bg-blue-500 { background-color: var(--primary-500) !important; }
+.theme-accent-orange .bg-blue-600 { background-color: var(--primary-600) !important; }
+.theme-accent-orange .bg-blue-700 { background-color: var(--primary-700) !important; }
+.theme-accent-orange .bg-blue-800 { background-color: var(--primary-800) !important; }
+.theme-accent-orange .bg-blue-900 { background-color: var(--primary-900) !important; }
+
+.theme-accent-orange .hover\:bg-blue-50:hover { background-color: var(--primary-50) !important; }
+.theme-accent-orange .hover\:bg-blue-100:hover { background-color: var(--primary-100) !important; }
+.theme-accent-orange .hover\:bg-blue-200:hover { background-color: var(--primary-200) !important; }
+.theme-accent-orange .hover\:bg-blue-300:hover { background-color: var(--primary-300) !important; }
+.theme-accent-orange .hover\:bg-blue-400:hover { background-color: var(--primary-400) !important; }
+.theme-accent-orange .hover\:bg-blue-500:hover { background-color: var(--primary-500) !important; }
+.theme-accent-orange .hover\:bg-blue-600:hover { background-color: var(--primary-600) !important; }
+.theme-accent-orange .hover\:bg-blue-700:hover { background-color: var(--primary-700) !important; }
+.theme-accent-orange .hover\:bg-blue-800:hover { background-color: var(--primary-800) !important; }
+.theme-accent-orange .hover\:bg-blue-900:hover { background-color: var(--primary-900) !important; }
+
+.theme-accent-orange .text-blue-50 { color: var(--primary-50) !important; }
+.theme-accent-orange .text-blue-100 { color: var(--primary-100) !important; }
+.theme-accent-orange .text-blue-200 { color: var(--primary-200) !important; }
+.theme-accent-orange .text-blue-300 { color: var(--primary-300) !important; }
+.theme-accent-orange .text-blue-400 { color: var(--primary-400) !important; }
+.theme-accent-orange .text-blue-500 { color: var(--primary-500) !important; }
+.theme-accent-orange .text-blue-600 { color: var(--primary-600) !important; }
+.theme-accent-orange .text-blue-700 { color: var(--primary-700) !important; }
+.theme-accent-orange .text-blue-800 { color: var(--primary-800) !important; }
+.theme-accent-orange .text-blue-900 { color: var(--primary-900) !important; }
+
+.theme-accent-orange .hover\:text-blue-600:hover { color: var(--primary-600) !important; }
+.theme-accent-orange.dark .dark\:hover\:text-blue-400:hover { color: var(--primary-400) !important; }
+
+.theme-accent-orange .border-blue-200 { border-color: var(--primary-200) !important; }
+.theme-accent-orange .border-blue-300 { border-color: var(--primary-300) !important; }
+.theme-accent-orange .border-blue-400 { border-color: var(--primary-400) !important; }
+.theme-accent-orange .border-blue-500 { border-color: var(--primary-500) !important; }
+.theme-accent-orange .border-blue-600 { border-color: var(--primary-600) !important; }
+.theme-accent-orange .border-blue-700 { border-color: var(--primary-700) !important; }
+
+/* Dark-prefixed utilities that appear in code */
+.theme-accent-orange.dark .dark\:bg-blue-900 { background-color: var(--primary-900) !important; }
+.theme-accent-orange.dark .dark\:bg-blue-900\/20 { background-color: var(--primary-900-20) !important; }
+.theme-accent-orange.dark .dark\:text-blue-200 { color: var(--primary-200) !important; }
+.theme-accent-orange.dark .dark\:text-blue-400 { color: var(--primary-400) !important; }
+.theme-accent-orange.dark .dark\:text-blue-300 { color: var(--primary-300) !important; }
+.theme-accent-orange .hover\:text-blue-700:hover { color: var(--primary-700) !important; }
+.theme-accent-orange.dark .dark\:hover\:text-blue-300:hover { color: var(--primary-300) !important; }
+.theme-accent-orange.dark .dark\:hover\:text-blue-400:hover { color: var(--primary-400) !important; }
+.theme-accent-orange.dark .dark\:bg-blue-900 { background-color: var(--primary-900) !important; }
+.theme-accent-orange.dark .dark\:bg-blue-900\/20 { background-color: var(--primary-900-20) !important; }
+.theme-accent-orange.dark .dark\:hover\:bg-blue-900\/20:hover { background-color: var(--primary-900-20) !important; }
+.theme-accent-orange.dark .dark\:border-blue-700 { border-color: var(--primary-700) !important; }
+.theme-accent-orange.dark .dark\:hover\:border-blue-700:hover { border-color: var(--primary-700) !important; }
+.theme-accent-orange.dark .dark\:focus\:ring-blue-600:focus { --tw-ring-color: var(--primary-600) !important; }
+
+/* Focus ring override */
+.theme-accent-orange .focus\:ring-blue-500:focus { --tw-ring-color: var(--primary-500) !important; }
+.theme-accent-orange .focus\:ring-blue-600:focus { --tw-ring-color: var(--primary-600) !important; }
+
+/* Switch custom CSS blue accents to use variables when orange theme is active */
+.theme-accent-orange .ProseMirror ::selection { background-color: var(--primary-500) !important; color: white; }
+.theme-accent-orange .drag-handle { background-color: var(--primary-500); }
+.theme-accent-orange .draggable-note[data-dragging="true"] { 
+  box-shadow: 0 15px 35px rgba(255, 140, 0, 0.4) !important;
+  border-color: var(--primary-600) !important;
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.1), rgba(255, 193, 102, 0.1)) !important;
+}
+.theme-accent-orange .drop-zone-active {
+  background: linear-gradient(135deg, rgba(255, 140, 0, 0.1), rgba(255, 193, 102, 0.05));
+  border-color: var(--primary-600);
+}
+.theme-accent-orange .sort-indicator { background: var(--primary-500); }
+.theme-accent-orange .drag-overlay {
+  border-color: var(--primary-500);
+  box-shadow: 0 20px 40px rgba(255, 140, 0, 0.4);
+}
+
+/* Utility for swatch without inline style */
+.bg-ff8c00 { background-color: #FF8C00; }
+.bg-eee8aa { background-color: #EEE8AA; }
+.bg-f5fffa { background-color: #F5FFFA; }
+.bg-ff0000 { background-color: #FF0000; }
+
+/* Gradient overrides when orange accent is active */
+.theme-accent-orange .from-blue-50 { --tw-gradient-from: var(--primary-50) !important; }
+.theme-accent-orange .to-indigo-100 { --tw-gradient-to: var(--primary-100) !important; }
+.theme-accent-orange .dark\:from-gray-900 { --tw-gradient-from: #1c0e00 !important; }
+.theme-accent-orange .dark\:to-gray-800 { --tw-gradient-to: #2a1600 !important; }
+.theme-accent-orange .from-blue-500 { --tw-gradient-from: var(--primary-500) !important; }
+.theme-accent-orange .to-purple-600 { --tw-gradient-to: var(--primary-600) !important; }
+
+/* Accent theme: Gold/Pale Goldenrod (#EEE8AA and similar) */
+.theme-accent-gold {
+  --primary-50: #fffbeb;
+  --primary-100: #fef3c7;
+  --primary-200: #fde68a;
+  --primary-300: #fcd34d;
+  --primary-400: #fbbf24;
+  --primary-500: #f59e0b;
+  --primary-600: #d97706;
+  --primary-700: #b45309;
+  --primary-800: #92400e;
+  --primary-900: #78350f;
+  --primary-900-20: rgba(120, 53, 15, 0.16);
+  /* Warm neutral surfaces (softer for dark) */
+  --surface-900: #15140b;
+  --surface-800: #1c1a0f;
+  --surface-700: #242112;
+  --surface-600: #2d2816;
+}
+
+/* Remap Tailwind blue utilities when gold theme is active */
+.theme-accent-gold .bg-blue-50 { background-color: var(--primary-50) !important; }
+.theme-accent-gold .bg-blue-100 { background-color: var(--primary-100) !important; }
+.theme-accent-gold .bg-blue-200 { background-color: var(--primary-200) !important; }
+.theme-accent-gold .bg-blue-300 { background-color: var(--primary-300) !important; }
+.theme-accent-gold .bg-blue-400 { background-color: var(--primary-400) !important; }
+.theme-accent-gold .bg-blue-500 { background-color: var(--primary-500) !important; }
+.theme-accent-gold .bg-blue-600 { background-color: var(--primary-600) !important; }
+.theme-accent-gold .bg-blue-700 { background-color: var(--primary-700) !important; }
+.theme-accent-gold .bg-blue-800 { background-color: var(--primary-800) !important; }
+.theme-accent-gold .bg-blue-900 { background-color: var(--primary-900) !important; }
+
+.theme-accent-gold .hover\:bg-blue-50:hover { background-color: var(--primary-50) !important; }
+.theme-accent-gold .hover\:bg-blue-100:hover { background-color: var(--primary-100) !important; }
+.theme-accent-gold .hover\:bg-blue-200:hover { background-color: var(--primary-200) !important; }
+.theme-accent-gold .hover\:bg-blue-300:hover { background-color: var(--primary-300) !important; }
+.theme-accent-gold .hover\:bg-blue-400:hover { background-color: var(--primary-400) !important; }
+.theme-accent-gold .hover\:bg-blue-500:hover { background-color: var(--primary-500) !important; }
+.theme-accent-gold .hover\:bg-blue-600:hover { background-color: var(--primary-600) !important; }
+.theme-accent-gold .hover\:bg-blue-700:hover { background-color: var(--primary-700) !important; }
+.theme-accent-gold .hover\:bg-blue-800:hover { background-color: var(--primary-800) !important; }
+.theme-accent-gold .hover\:bg-blue-900:hover { background-color: var(--primary-900) !important; }
+
+.theme-accent-gold .text-blue-50 { color: var(--primary-50) !important; }
+.theme-accent-gold .text-blue-100 { color: var(--primary-100) !important; }
+.theme-accent-gold .text-blue-200 { color: var(--primary-200) !important; }
+.theme-accent-gold .text-blue-300 { color: var(--primary-300) !important; }
+.theme-accent-gold .text-blue-400 { color: var(--primary-400) !important; }
+.theme-accent-gold .text-blue-500 { color: var(--primary-500) !important; }
+.theme-accent-gold .text-blue-600 { color: var(--primary-600) !important; }
+.theme-accent-gold .text-blue-700 { color: var(--primary-700) !important; }
+.theme-accent-gold .text-blue-800 { color: var(--primary-800) !important; }
+.theme-accent-gold .text-blue-900 { color: var(--primary-900) !important; }
+.theme-accent-gold .hover\:text-blue-600:hover { color: var(--primary-600) !important; }
+.theme-accent-gold .hover\:text-blue-700:hover { color: var(--primary-700) !important; }
+
+.theme-accent-gold .border-blue-200 { border-color: var(--primary-200) !important; }
+.theme-accent-gold .border-blue-300 { border-color: var(--primary-300) !important; }
+.theme-accent-gold .border-blue-400 { border-color: var(--primary-400) !important; }
+.theme-accent-gold .border-blue-500 { border-color: var(--primary-500) !important; }
+.theme-accent-gold .border-blue-600 { border-color: var(--primary-600) !important; }
+.theme-accent-gold .border-blue-700 { border-color: var(--primary-700) !important; }
+
+/* Dark variants for gold theme */
+.theme-accent-gold.dark .dark\:bg-blue-900 { background-color: var(--primary-900) !important; }
+.theme-accent-gold.dark .dark\:bg-blue-900\/20 { background-color: var(--primary-900-20) !important; }
+.theme-accent-gold.dark .dark\:text-blue-200 { color: var(--primary-200) !important; }
+.theme-accent-gold.dark .dark\:text-blue-300 { color: var(--primary-300) !important; }
+.theme-accent-gold.dark .dark\:text-blue-400 { color: var(--primary-400) !important; }
+.theme-accent-gold.dark .dark\:hover\:bg-blue-900\/20:hover { background-color: var(--primary-900-20) !important; }
+.theme-accent-gold.dark .dark\:border-blue-700 { border-color: var(--primary-700) !important; }
+.theme-accent-gold.dark .dark\:hover\:border-blue-700:hover { border-color: var(--primary-700) !important; }
+.theme-accent-gold.dark .dark\:focus\:ring-blue-600:focus { --tw-ring-color: var(--primary-600) !important; }
+
+/* Gradients in gold theme */
+.theme-accent-gold .from-blue-50 { --tw-gradient-from: var(--primary-50) !important; }
+.theme-accent-gold .to-indigo-100 { --tw-gradient-to: var(--primary-100) !important; }
+.theme-accent-gold .from-blue-500 { --tw-gradient-from: var(--primary-500) !important; }
+.theme-accent-gold .to-purple-600 { --tw-gradient-to: var(--primary-600) !important; }
+.theme-accent-gold .dark\:from-gray-900 { --tw-gradient-from: #1b1a0e !important; }
+.theme-accent-gold .dark\:to-gray-800 { --tw-gradient-to: #262312 !important; }
+
+/* Replace gray surfaces in dark when gold theme is active */
+.theme-accent-gold.dark .dark\:bg-gray-900 { background-color: var(--surface-900) !important; }
+.theme-accent-gold.dark .dark\:bg-gray-800 { background-color: var(--surface-800) !important; }
+.theme-accent-gold.dark .dark\:bg-gray-700 { background-color: var(--surface-700) !important; }
+.theme-accent-gold.dark .dark\:bg-gray-600 { background-color: var(--surface-600) !important; }
+.theme-accent-gold.dark .dark\:border-gray-700 { border-color: #4d4726 !important; }
+.theme-accent-gold.dark .dark\:border-gray-600 { border-color: #5e5731 !important; }
+
+/* Accent theme: Mint (#F5FFFA and similar) */
+.theme-accent-mint {
+  --primary-50: #f5fffa; /* requested base */
+  --primary-100: #e6fff3;
+  --primary-200: #cfffe8;
+  --primary-300: #a9f7d7;
+  --primary-400: #7ceccc;
+  --primary-500: #34d399; /* emerald-ish for focus */
+  --primary-600: #10b981; /* strong mint */
+  --primary-700: #059669;
+  --primary-800: #047857;
+  --primary-900: #065f46;
+  --primary-900-20: rgba(6, 95, 70, 0.2);
+  --surface-900: #0a1310;
+  --surface-800: #0f1916;
+  --surface-700: #14201c;
+  --surface-600: #192723;
+}
+
+.theme-accent-mint .bg-blue-50 { background-color: var(--primary-50) !important; }
+.theme-accent-mint .bg-blue-100 { background-color: var(--primary-100) !important; }
+.theme-accent-mint .bg-blue-200 { background-color: var(--primary-200) !important; }
+.theme-accent-mint .bg-blue-300 { background-color: var(--primary-300) !important; }
+.theme-accent-mint .bg-blue-400 { background-color: var(--primary-400) !important; }
+.theme-accent-mint .bg-blue-500 { background-color: var(--primary-500) !important; }
+.theme-accent-mint .bg-blue-600 { background-color: var(--primary-600) !important; }
+.theme-accent-mint .bg-blue-700 { background-color: var(--primary-700) !important; }
+.theme-accent-mint .bg-blue-800 { background-color: var(--primary-800) !important; }
+.theme-accent-mint .bg-blue-900 { background-color: var(--primary-900) !important; }
+.theme-accent-mint .hover\:bg-blue-600:hover { background-color: var(--primary-600) !important; }
+.theme-accent-mint .text-blue-600 { color: var(--primary-600) !important; }
+.theme-accent-mint .border-blue-400 { border-color: var(--primary-400) !important; }
+.theme-accent-mint .focus\:ring-blue-500:focus { --tw-ring-color: var(--primary-500) !important; }
+
+.theme-accent-mint.dark .dark\:bg-blue-900 { background-color: var(--primary-900) !important; }
+.theme-accent-mint.dark .dark\:bg-blue-900\/20 { background-color: var(--primary-900-20) !important; }
+.theme-accent-mint.dark .dark\:text-blue-200 { color: var(--primary-200) !important; }
+.theme-accent-mint.dark .dark\:text-blue-300 { color: var(--primary-300) !important; }
+.theme-accent-mint.dark .dark\:text-blue-400 { color: var(--primary-400) !important; }
+.theme-accent-mint.dark .dark\:focus\:ring-blue-600:focus { --tw-ring-color: var(--primary-600) !important; }
+.theme-accent-mint .from-blue-50 { --tw-gradient-from: var(--primary-50) !important; }
+.theme-accent-mint .to-indigo-100 { --tw-gradient-to: var(--primary-100) !important; }
+.theme-accent-mint .from-blue-500 { --tw-gradient-from: var(--primary-500) !important; }
+.theme-accent-mint .to-purple-600 { --tw-gradient-to: var(--primary-600) !important; }
+.theme-accent-mint .dark\:from-gray-900 { --tw-gradient-from: #0c1714 !important; }
+.theme-accent-mint .dark\:to-gray-800 { --tw-gradient-to: #12201c !important; }
+.theme-accent-mint.dark .dark\:bg-gray-900 { background-color: var(--surface-900) !important; }
+.theme-accent-mint.dark .dark\:bg-gray-800 { background-color: var(--surface-800) !important; }
+.theme-accent-mint.dark .dark\:bg-gray-700 { background-color: var(--surface-700) !important; }
+.theme-accent-mint.dark .dark\:bg-gray-600 { background-color: var(--surface-600) !important; }
+.theme-accent-mint.dark .dark\:border-gray-700 { border-color: #1a2b26 !important; }
+.theme-accent-mint.dark .dark\:border-gray-600 { border-color: #213630 !important; }
+
+/* Accent theme: Red (#FF0000 and similar) */
+.theme-accent-red {
+  --primary-50: #fef2f2;
+  --primary-100: #fee2e2;
+  --primary-200: #fecaca;
+  --primary-300: #fca5a5;
+  --primary-400: #f87171;
+  --primary-500: #ef4444;
+  --primary-600: #ff0000; /* requested */
+  --primary-700: #dc2626;
+  --primary-800: #b91c1c;
+  --primary-900: #991b1b;
+  --primary-900-20: rgba(153, 27, 27, 0.2);
+  --surface-900: #140909;
+  --surface-800: #1b0b0b;
+  --surface-700: #230e0e;
+  --surface-600: #2b1212;
+}
+
+.theme-accent-red .bg-blue-50 { background-color: var(--primary-50) !important; }
+.theme-accent-red .bg-blue-100 { background-color: var(--primary-100) !important; }
+.theme-accent-red .bg-blue-200 { background-color: var(--primary-200) !important; }
+.theme-accent-red .bg-blue-300 { background-color: var(--primary-300) !important; }
+.theme-accent-red .bg-blue-400 { background-color: var(--primary-400) !important; }
+.theme-accent-red .bg-blue-500 { background-color: var(--primary-500) !important; }
+.theme-accent-red .bg-blue-600 { background-color: var(--primary-600) !important; }
+.theme-accent-red .bg-blue-700 { background-color: var(--primary-700) !important; }
+.theme-accent-red .bg-blue-800 { background-color: var(--primary-800) !important; }
+.theme-accent-red .bg-blue-900 { background-color: var(--primary-900) !important; }
+.theme-accent-red .hover\:bg-blue-600:hover { background-color: var(--primary-600) !important; }
+.theme-accent-red .text-blue-600 { color: var(--primary-600) !important; }
+.theme-accent-red .border-blue-400 { border-color: var(--primary-400) !important; }
+.theme-accent-red .focus\:ring-blue-500:focus { --tw-ring-color: var(--primary-500) !important; }
+
+.theme-accent-red.dark .dark\:bg-blue-900 { background-color: var(--primary-900) !important; }
+.theme-accent-red.dark .dark\:bg-blue-900\/20 { background-color: var(--primary-900-20) !important; }
+.theme-accent-red.dark .dark\:text-blue-200 { color: var(--primary-200) !important; }
+.theme-accent-red.dark .dark\:text-blue-300 { color: var(--primary-300) !important; }
+.theme-accent-red.dark .dark\:text-blue-400 { color: var(--primary-400) !important; }
+.theme-accent-red.dark .dark\:focus\:ring-blue-600:focus { --tw-ring-color: var(--primary-600) !important; }
+.theme-accent-red .from-blue-50 { --tw-gradient-from: var(--primary-50) !important; }
+.theme-accent-red .to-indigo-100 { --tw-gradient-to: var(--primary-100) !important; }
+.theme-accent-red .from-blue-500 { --tw-gradient-from: var(--primary-500) !important; }
+.theme-accent-red .to-purple-600 { --tw-gradient-to: var(--primary-600) !important; }
+.theme-accent-red .dark\:from-gray-900 { --tw-gradient-from: #1a0e0e !important; }
+.theme-accent-red .dark\:to-gray-800 { --tw-gradient-to: #251212 !important; }
+.theme-accent-red.dark .dark\:bg-gray-900 { background-color: var(--surface-900) !important; }
+.theme-accent-red.dark .dark\:bg-gray-800 { background-color: var(--surface-800) !important; }
+.theme-accent-red.dark .dark\:bg-gray-700 { background-color: var(--surface-700) !important; }
+.theme-accent-red.dark .dark\:bg-gray-600 { background-color: var(--surface-600) !important; }
+.theme-accent-red.dark .dark\:border-gray-700 { border-color: #532121 !important; }
+.theme-accent-red.dark .dark\:border-gray-600 { border-color: #6a2929 !important; }
+
+/* Replace gray surfaces in dark mode with warm surfaces when orange accent is active */
+.theme-accent-orange.dark .dark\:bg-gray-900 { background-color: var(--surface-900) !important; }
+.theme-accent-orange.dark .dark\:bg-gray-800 { background-color: var(--surface-800) !important; }
+.theme-accent-orange.dark .dark\:bg-gray-700 { background-color: var(--surface-700) !important; }
+.theme-accent-orange.dark .dark\:bg-gray-600 { background-color: var(--surface-600) !important; }
+
+.theme-accent-orange.dark .dark\:border-gray-700 { border-color: #3a2b1a !important; }
+.theme-accent-orange.dark .dark\:border-gray-600 { border-color: #4a3420 !important; }
+
 /* TipTap Editor Styles */
 .ProseMirror {
   outline: none;
@@ -291,6 +625,7 @@ html, body {
 .ProseMirror ul[data-type="taskList"] li > label {
   flex: 0 0 auto;
   margin-right: 0.5em;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -315,7 +650,7 @@ html, body {
   cursor: pointer;
   width: 16px;
   height: 16px;
-  accent-color: #3b82f6;
+  accent-color: var(--primary-500);
 }
 
 /* Dark mode styles */
@@ -352,7 +687,7 @@ html, body {
 
 /* Selection styles */
 .ProseMirror ::selection {
-  background-color: #3b82f6;
+  background-color: var(--primary-500);
   color: white;
 }
 
@@ -375,7 +710,7 @@ html, body {
 }
 
 .draggable-image:hover {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--primary-500);
   outline-offset: 2px;
 }
 
@@ -390,7 +725,7 @@ html, body {
   left: -8px;
   width: 16px;
   height: 16px;
-  background-color: #3b82f6;
+  background-color: var(--primary-500);
   border-radius: 50%;
   cursor: move;
   opacity: 0;
@@ -435,7 +770,7 @@ html, body {
   transform: rotate(2deg) scale(1.08) !important;
   box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4) !important;
   z-index: 1000 !important;
-  border: 2px solid #3b82f6 !important;
+  border: 2px solid var(--primary-500) !important;
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.1)) !important;
   transition: none !important;
 }
@@ -448,14 +783,14 @@ html, body {
 
 .draggable-note:hover .drag-handle {
   opacity: 1;
-  background-color: #3b82f6;
+  background-color: var(--primary-500);
   transform: scale(1.2);
 }
 
 /* Feedback visual para áreas de drop */
 .drop-zone-active {
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 197, 253, 0.05));
-  border: 2px dashed #3b82f6;
+  border: 2px dashed var(--primary-500);
   transform: scale(1.02);
   transition: all 0.2s ease;
 }
@@ -515,8 +850,9 @@ html, body {
 .drag-overlay {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.95);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
-  border: 2px solid #3b82f6;
+  border: 2px solid var(--primary-500);
   box-shadow: 0 20px 40px rgba(59, 130, 246, 0.4);
   transform: rotate(3deg);
 }
@@ -530,7 +866,7 @@ html, body {
 /* Indicador de posição durante reordenação */
 .sort-indicator {
   height: 2px;
-  background: #3b82f6;
+  background: var(--primary-500);
   border-radius: 1px;
   margin: 4px 0;
   opacity: 0;

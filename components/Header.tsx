@@ -36,6 +36,30 @@ export default function Header({
   const [invitations, setInvitations] = useState<CompanyMember[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [processing, setProcessing] = useState<Record<string, 'accept' | 'decline' | null>>({});
+  const [accentTheme, setAccentTheme] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'blue';
+    return localStorage.getItem('settings:accentTheme') || 'blue';
+  });
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    // Remove all known accent classes
+    root.classList.remove('theme-accent-orange');
+    root.classList.remove('theme-accent-gold');
+    root.classList.remove('theme-accent-mint');
+    root.classList.remove('theme-accent-red');
+    // Apply selected accent
+    if (accentTheme === 'orange') {
+      root.classList.add('theme-accent-orange');
+    } else if (accentTheme === 'gold') {
+      root.classList.add('theme-accent-gold');
+    } else if (accentTheme === 'mint') {
+      root.classList.add('theme-accent-mint');
+    } else if (accentTheme === 'red') {
+      root.classList.add('theme-accent-red');
+    }
+  }, [accentTheme]);
 
   useEffect(() => {
     const loadInvites = async () => {
@@ -220,6 +244,33 @@ export default function Header({
                     <button onClick={toggleTheme} className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                       {darkMode ? t('common.active') : t('common.inactive')}
                     </button>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 mb-1" htmlFor="accent-select">{t('settings.themeAccent') || 'Cor do tema'}</label>
+                    <select
+                      id="accent-select"
+                      value={accentTheme}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setAccentTheme(v);
+                        try { localStorage.setItem('settings:accentTheme', v); } catch {}
+                      }}
+                      className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-gray-800 dark:text-gray-200"
+                    >
+                      <option value="blue">Blue (padrão)</option>
+                      <option value="orange">Orange</option>
+                      <option value="gold">Gold</option>
+                      <option value="mint">Mint</option>
+                      <option value="red">Red</option>
+                    </select>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="inline-block w-5 h-5 rounded bg-blue-600"></span>
+                      <span className="inline-block w-5 h-5 rounded bg-orange-500"></span>
+                      <span className="inline-block w-5 h-5 rounded bg-ff8c00"></span>
+                      <span className="inline-block w-5 h-5 rounded bg-eee8aa"></span>
+                      <span className="inline-block w-5 h-5 rounded bg-f5fffa"></span>
+                      <span className="inline-block w-5 h-5 rounded bg-ff0000"></span>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-gray-700 dark:text-gray-300 mb-1">{t('settings.autoRefresh')}</label>

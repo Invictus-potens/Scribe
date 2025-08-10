@@ -172,6 +172,7 @@ export const companyHelpers = {
       p_company_id: companyId
     });
 
+    void _userId;
     return { error };
   },
 
@@ -181,6 +182,7 @@ export const companyHelpers = {
       p_company_id: companyId
     });
 
+    void _userId;
     return { error };
   },
 

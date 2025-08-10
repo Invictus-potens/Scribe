@@ -239,13 +239,14 @@ export default function Header({
                   <div className="flex items-center justify-between">
                     <span className="text-gray-700 dark:text-gray-300">{t('settings.doNotDisturb')}</span>
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
                         const key = 'settings:dnd';
                         const current = localStorage.getItem(key) === 'true';
                         localStorage.setItem(key, String(!current));
                         // Quick feedback visual
-                        (e?.target as HTMLElement)?.classList.add('ring-2');
-                        setTimeout(() => (e?.target as HTMLElement)?.classList.remove('ring-2'), 300);
+                        const target = e.currentTarget as HTMLElement;
+                        target.classList.add('ring-2');
+                        setTimeout(() => target.classList.remove('ring-2'), 300);
                       }}
                       className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
                     >

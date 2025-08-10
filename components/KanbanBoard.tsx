@@ -37,7 +37,7 @@ export default function KanbanBoard() {
     tags: [] as string[]
   });
   const [showShareModal, setShowShareModal] = useState(false);
-  const [_banner, setBanner] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
+  const [, setBanner] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [confirmDeleteLoading, setConfirmDeleteLoading] = useState(false);
   const [confirmDeleteCardOpen, setConfirmDeleteCardOpen] = useState(false);

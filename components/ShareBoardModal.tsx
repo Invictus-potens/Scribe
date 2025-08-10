@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { companyHelpers, Company, type BoardPermissions } from '../lib/companyHelpers';
 import { authHelpers } from '../lib/supabase';
 
@@ -62,6 +62,8 @@ export default function ShareBoardModal({ boardId, boardTitle, isOpen, onClose }
     }
   };
 
+  const defaultColab = useMemo(() => PRESETS.colaborador, []);
+
   const permissionDescriptions: Record<keyof BoardPermissions, string> = {
     view_board: 'Pode visualizar o board, colunas e cards.',
     manage_board: 'Pode renomear, excluir e compartilhar o board.',
@@ -99,10 +101,10 @@ export default function ShareBoardModal({ boardId, boardTitle, isOpen, onClose }
       window.addEventListener('keydown', onKey);
       // Define preset padrão ao abrir e aplica os valores do preset
       setPreset('colaborador');
-      setPerms(PRESETS.colaborador);
+      setPerms(defaultColab);
       return () => window.removeEventListener('keydown', onKey);
     }
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, defaultColab]);
 
   // Carrega preset/perms persistidos quando empresa muda
   useEffect(() => {

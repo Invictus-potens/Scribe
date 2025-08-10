@@ -285,7 +285,7 @@ export default function NotesEditor({
       console.error('Error saving note:', error);
       toast.error(t('error.unexpectedSave'));
     }
-  }, [selectedNote, editor, isPinned, isFavorite, isArchived, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved, title, tags]);
+  }, [selectedNote, editor, isPinned, isFavorite, isArchived, selectedFolder, setSelectedNote, setHasUnsavedChanges, onNoteSaved, title, tags, t, toast]);
 
   // Atalho Ctrl/Cmd+S para salvar
   useEffect(() => {

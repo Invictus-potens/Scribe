@@ -39,10 +39,10 @@ const REMINDER_OPTIONS = [
 
 export default function Calendar() {
   const { t } = useI18n();
-  const { formatDate, formatMonthYear, formatLongDate, getWeekdayShortNames } = useDateFormatter();
+  const { formatMonthYear, formatLongDate, getWeekdayShortNames } = useDateFormatter();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
-  const [_, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);

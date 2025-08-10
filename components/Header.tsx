@@ -49,6 +49,7 @@ export default function Header({
     root.classList.remove('theme-accent-gold');
     root.classList.remove('theme-accent-mint');
     root.classList.remove('theme-accent-red');
+    root.classList.remove('theme-accent-orchid');
     // Apply selected accent
     if (accentTheme === 'orange') {
       root.classList.add('theme-accent-orange');
@@ -58,6 +59,8 @@ export default function Header({
       root.classList.add('theme-accent-mint');
     } else if (accentTheme === 'red') {
       root.classList.add('theme-accent-red');
+    } else if (accentTheme === 'orchid') {
+      root.classList.add('theme-accent-orchid');
     }
   }, [accentTheme]);
 
@@ -262,6 +265,7 @@ export default function Header({
                       <option value="gold">Gold</option>
                       <option value="mint">Mint</option>
                       <option value="red">Red</option>
+                      <option value="orchid">Orchid</option>
                     </select>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="inline-block w-5 h-5 rounded bg-blue-600"></span>
@@ -270,6 +274,7 @@ export default function Header({
                       <span className="inline-block w-5 h-5 rounded bg-eee8aa"></span>
                       <span className="inline-block w-5 h-5 rounded bg-f5fffa"></span>
                       <span className="inline-block w-5 h-5 rounded bg-ff0000"></span>
+                      <span className="inline-block w-5 h-5 rounded bg-da70d6"></span>
                     </div>
                   </div>
                   <div>

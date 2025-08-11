@@ -48,6 +48,36 @@ export interface KanbanComment {
   updated_at: string;
 }
 
+export interface KanbanChecklistItem {
+  id: string;
+  card_id: string;
+  content: string;
+  is_done: boolean;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KanbanAttachment {
+  id: string;
+  card_id: string;
+  file_name: string;
+  file_size?: number;
+  mime_type?: string;
+  storage_path: string;
+  created_at: string;
+}
+
+export interface KanbanCardTemplate {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  priority: 'low' | 'medium' | 'high';
+  tags?: string[];
+  created_at: string;
+}
+
 export const kanbanHelpers = {
   // Boards
   async getBoards(userId: string): Promise<{ data: KanbanBoard[] | null; error: any }> {
@@ -307,6 +337,135 @@ export const kanbanHelpers = {
       .from('kanban_card_comments')
       .delete()
       .eq('id', commentId);
+    return { error };
+  },
+
+  // Checklist
+  async getChecklistItems(cardId: string): Promise<{ data: KanbanChecklistItem[] | null; error: any }> {
+    const { data, error } = await supabase
+      .from('kanban_card_checklist_items')
+      .select('*')
+      .eq('card_id', cardId)
+      .order('order_index', { ascending: true });
+    return { data: (data as KanbanChecklistItem[]) || null, error };
+  },
+
+  async addChecklistItem(cardId: string, content: string, orderIndex: number): Promise<{ data: KanbanChecklistItem | null; error: any }> {
+    const { data, error } = await supabase
+      .from('kanban_card_checklist_items')
+      .insert([{ card_id: cardId, content, order_index: orderIndex }])
+      .select()
+      .single();
+    return { data: (data as KanbanChecklistItem) || null, error };
+  },
+
+  async updateChecklistItem(id: string, updates: Partial<KanbanChecklistItem>): Promise<{ data: KanbanChecklistItem | null; error: any }> {
+    const { data, error } = await supabase
+      .from('kanban_card_checklist_items')
+      .update(updates as any)
+      .eq('id', id)
+      .select()
+      .single();
+    return { data: (data as KanbanChecklistItem) || null, error };
+  },
+
+  async deleteChecklistItem(id: string): Promise<{ error: any }> {
+    const { error } = await supabase
+      .from('kanban_card_checklist_items')
+      .delete()
+      .eq('id', id);
+    return { error };
+  },
+
+  async reorderChecklistItems(cardId: string, orderedIds: string[]): Promise<{ error: any }> {
+    try {
+      await Promise.all(orderedIds.map((id, index) =>
+        supabase.from('kanban_card_checklist_items').update({ order_index: index }).eq('id', id)
+      ));
+      return { error: null } as any;
+    } catch (e) {
+      return { error: e } as any;
+    }
+  },
+
+  // Attachments
+  async listAttachments(cardId: string): Promise<{ data: KanbanAttachment[] | null; error: any }> {
+    const { data, error } = await supabase
+      .from('kanban_card_attachments')
+      .select('*')
+      .eq('card_id', cardId)
+      .order('created_at', { ascending: true });
+    return { data: (data as KanbanAttachment[]) || null, error };
+  },
+
+  async uploadAttachment(cardId: string, file: File, bucket = 'kanban-attachments'): Promise<{ data: KanbanAttachment | null; error: any }> {
+    const path = `${cardId}/${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from(bucket).upload(path, file, { upsert: false, contentType: file.type });
+    if (upErr) return { data: null, error: upErr };
+    const { data, error } = await supabase
+      .from('kanban_card_attachments')
+      .insert([{ card_id: cardId, file_name: file.name, file_size: file.size, mime_type: file.type, storage_path: path }])
+      .select()
+      .single();
+    return { data: (data as KanbanAttachment) || null, error };
+  },
+
+  async getAttachmentUrl(storagePath: string, bucket = 'kanban-attachments'): Promise<string | null> {
+    try {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+      return data.publicUrl || null;
+    } catch {
+      try {
+        const { data } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 300);
+        return data?.signedUrl || null;
+      } catch {
+        return null;
+      }
+    }
+  },
+
+  async deleteAttachment(id: string, bucket = 'kanban-attachments'): Promise<{ error: any }> {
+    // fetch for path
+    const { data: row } = await supabase
+      .from('kanban_card_attachments')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (row?.storage_path) {
+      await supabase.storage.from(bucket).remove([row.storage_path]);
+    }
+    const { error } = await supabase
+      .from('kanban_card_attachments')
+      .delete()
+      .eq('id', id);
+    return { error };
+  },
+
+  // Card templates
+  async getCardTemplates(): Promise<{ data: KanbanCardTemplate[] | null; error: any }> {
+    const { data, error } = await supabase
+      .from('kanban_card_templates')
+      .select('*')
+      .order('created_at', { ascending: false });
+    return { data: (data as KanbanCardTemplate[]) || null, error };
+  },
+
+  async createCardTemplate(title: string, description: string, priority: 'low' | 'medium' | 'high', tags: string[]): Promise<{ data: KanbanCardTemplate | null; error: any }> {
+    const { user } = await authHelpers.getCurrentUser();
+    if (!user) return { data: null, error: { message: 'Not authenticated' } } as any;
+    const { data, error } = await supabase
+      .from('kanban_card_templates')
+      .insert([{ user_id: user.id, title, description, priority, tags }])
+      .select()
+      .single();
+    return { data: (data as KanbanCardTemplate) || null, error };
+  },
+
+  async deleteCardTemplate(id: string): Promise<{ error: any }> {
+    const { error } = await supabase
+      .from('kanban_card_templates')
+      .delete()
+      .eq('id', id);
     return { error };
   }
 }; 

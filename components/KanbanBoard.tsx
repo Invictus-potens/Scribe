@@ -60,6 +60,11 @@ export default function KanbanBoard() {
   const [mentionQuery, setMentionQuery] = useState('');
   const [mentionResults, setMentionResults] = useState<{ user_id: string; label: string }[]>([]);
   const mentionRef = useRef<HTMLDivElement | null>(null);
+  const [checklistItems, setChecklistItems] = useState<any[]>([]);
+  const [newChecklistText, setNewChecklistText] = useState('');
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [attachmentThumbs, setAttachmentThumbs] = useState<Record<string, string | null>>({});
   const toast = useToast();
   const realtimeRef = useRef<any>(null);
 
@@ -643,6 +648,41 @@ export default function KanbanBoard() {
   const userIdToLabel = (id: string) => (assigneeMemberOptions.find(o => o.user_id === id)?.label) || id;
   const renderCommentText = (text: string) => text.replace(/<@([0-9a-fA-F-]{36})>/g, (_, uid) => `@${userIdToLabel(uid)}`);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      // Global: 'c' to open new card modal on first column
+      if (!showEditCardModal && e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const active = activeBoard;
+        if (!active) return;
+        const meta = boards.find(b => b.id === active.id);
+        const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+        if (!can('create_card')) return;
+        const firstColumnId = active.columns[0]?.id;
+        if (!firstColumnId) return;
+        setNewCardColumn(firstColumnId);
+        setShowNewCardModal(true);
+      }
+      // In edit modal: Ctrl+Enter to add comment
+      if (showEditCardModal && (e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        const btn = document.activeElement as HTMLElement;
+        // attempt to add comment
+        const addBtn = document.querySelector('#add-comment-btn') as HTMLButtonElement | null;
+        addBtn?.click();
+      }
+      // Enter to add checklist when focused on its input
+      if (showEditCardModal && e.key === 'Enter') {
+        const el = document.activeElement as HTMLInputElement | null;
+        if (el && el.getAttribute('data-checklist-input') === 'true') {
+          const addItemBtn = document.querySelector('#add-checklist-btn') as HTMLButtonElement | null;
+          addItemBtn?.click();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showEditCardModal, activeBoard, boards]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -877,7 +917,7 @@ export default function KanbanBoard() {
                   >
                     <i className="ri-add-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
                   </button>
-                  <button
+                  <button id="add-comment-btn"
                     onClick={async () => {
                       const meta = boards.find(b => b.id === activeBoard.id);
                       const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
@@ -953,8 +993,24 @@ export default function KanbanBoard() {
                             dueDate: card.due_date ? card.due_date.slice(0, 10) : ''
                           } as any);
                           try {
-                            const { data } = await kanbanHelpers.getCardComments(card.id);
-                            setCardComments(data || []);
+                            const [cmt, cli, att] = await Promise.all([
+                              kanbanHelpers.getCardComments(card.id),
+                              kanbanHelpers.getChecklistItems(card.id),
+                              kanbanHelpers.listAttachments(card.id)
+                            ]);
+                            setCardComments(cmt.data || []);
+                            setChecklistItems(cli.data || []);
+                            const list = att.data || [];
+                            setAttachments(list);
+                            // load preview URLs for images/pdf
+                            try {
+                              const entries = await Promise.all(list.map(async (a: any) => {
+                                if (!a?.storage_path) return [a.id, null] as const;
+                                const url = await kanbanHelpers.getAttachmentUrl(a.storage_path);
+                                return [a.id, url] as const;
+                              }));
+                              setAttachmentThumbs(Object.fromEntries(entries));
+                            } catch {}
                           } catch {}
                           setShowEditCardModal(true);
                         }}
@@ -1377,6 +1433,116 @@ export default function KanbanBoard() {
                   >
                     Adicionar
                   </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Checklist</label>
+                <div className="space-y-2 max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                  {checklistItems.map((it: any, idx: number) => (
+                    <div key={it.id} className="flex items-center gap-2 bg-white/60 dark:bg-gray-800/60 p-2 rounded border border-gray-200 dark:border-gray-600">
+                      <input type="checkbox" checked={!!it.is_done} title="Marcar como concluído" onChange={async (e) => {
+                        const { data, error } = await kanbanHelpers.updateChecklistItem(it.id, { is_done: e.target.checked } as any);
+                        if (!error && data) setChecklistItems(prev => prev.map(x => x.id === it.id ? data : x));
+                      }} />
+                      <span className={`flex-1 text-sm ${it.is_done ? 'line-through text-gray-500' : 'text-gray-800 dark:text-gray-200'}`}>{it.content}</span>
+                      <button className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded" onClick={async () => {
+                        const edited = window.prompt('Editar item', it.content)?.trim();
+                        if (!edited || edited === it.content) return;
+                        const { data, error } = await kanbanHelpers.updateChecklistItem(it.id, { content: edited } as any);
+                        if (!error && data) setChecklistItems(prev => prev.map(x => x.id === it.id ? data : x));
+                      }}>Editar</button>
+                      <button className="text-xs px-2 py-0.5 bg-red-600 text-white rounded" onClick={async () => {
+                        const { error } = await kanbanHelpers.deleteChecklistItem(it.id);
+                        if (!error) setChecklistItems(prev => prev.filter(x => x.id !== it.id));
+                      }}>Excluir</button>
+                      <div className="flex flex-col">
+                        <button className="text-xs" disabled={idx===0} onClick={async () => {
+                          if (idx===0) return; const reordered = [...checklistItems];
+                          const [m] = reordered.splice(idx,1); reordered.splice(idx-1,0,m);
+                          setChecklistItems(reordered);
+                          await kanbanHelpers.reorderChecklistItems((editCard as any).id, reordered.map(x=>x.id));
+                        }}>↑</button>
+                        <button className="text-xs" disabled={idx===checklistItems.length-1} onClick={async () => {
+                          if (idx===checklistItems.length-1) return; const reordered = [...checklistItems];
+                          const [m] = reordered.splice(idx,1); reordered.splice(idx+1,0,m);
+                          setChecklistItems(reordered);
+                          await kanbanHelpers.reorderChecklistItems((editCard as any).id, reordered.map(x=>x.id));
+                        }}>↓</button>
+                      </div>
+                    </div>
+                  ))}
+                  {checklistItems.length === 0 && (
+                    <div className="text-xs text-gray-500">Sem itens.</div>
+                  )}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <input data-checklist-input="true"
+                    type="text"
+                    value={newChecklistText}
+                    onChange={(e) => setNewChecklistText(e.target.value)}
+                    placeholder="Novo item"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100"
+                  />
+                  <button id="add-checklist-btn"
+                    onClick={async () => {
+                      const text = newChecklistText.trim(); if (!text || !editCard) return;
+                      const { data, error } = await kanbanHelpers.addChecklistItem(editCard.id, text, checklistItems.length);
+                      if (!error && data) { setChecklistItems(prev => [...prev, data]); setNewChecklistText(''); }
+                    }}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                  >Adicionar</button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Anexos</label>
+                <div className="space-y-2 max-h-40 overflow-y-auto bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                  {attachments.map((a: any) => (
+                    <div key={a.id} className="flex items-center justify-between bg-white/60 dark:bg-gray-800/60 p-2 rounded border border-gray-200 dark:border-gray-600">
+                      <div className="text-sm truncate max-w-[60%]" title={a.file_name}>{a.file_name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          {a.mime_type?.startsWith('image/') && attachmentThumbs[a.id] && (
+                            <img src={attachmentThumbs[a.id] as string} alt={a.file_name} title={a.file_name}
+                              className="h-10 w-10 object-cover rounded border border-gray-200 dark:border-gray-600" />
+                          )}
+                          {a.mime_type === 'application/pdf' && (
+                            <i className="ri-file-pdf-2-line text-red-600" title="PDF"></i>
+                          )}
+                        </div>
+                        <button className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded" onClick={async () => {
+                          const url = attachmentThumbs[a.id] || await kanbanHelpers.getAttachmentUrl(a.storage_path);
+                          if (url) window.open(url, '_blank');
+                        }}>Abrir</button>
+                        <button className="text-xs px-2 py-0.5 bg-red-600 text-white rounded" onClick={async () => {
+                          const { error } = await kanbanHelpers.deleteAttachment(a.id);
+                          if (!error) setAttachments(prev => prev.filter(x => x.id !== a.id));
+                        }}>Excluir</button>
+                      </div>
+                    </div>
+                  ))}
+                  {attachments.length === 0 && (
+                    <div className="text-xs text-gray-500">Sem anexos.</div>
+                  )}
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <input type="file" id="attach-input" title="Selecionar arquivo" onChange={async (e) => {
+                    const file = e.target.files?.[0]; if (!file || !editCard) return;
+                    try {
+                      setUploading(true);
+                      const { data, error } = await kanbanHelpers.uploadAttachment(editCard.id, file);
+                      if (!error && data) {
+                        setAttachments(prev => [...prev, data]);
+                        try {
+                          const url = await kanbanHelpers.getAttachmentUrl(data.storage_path);
+                          setAttachmentThumbs(prev => ({ ...prev, [data.id]: url }));
+                        } catch {}
+                      }
+                    } finally {
+                      setUploading(false);
+                      (e.target as HTMLInputElement).value = '';
+                    }
+                  }} />
+                  {uploading && <span className="text-xs text-gray-500">Enviando...</span>}
                 </div>
               </div>
             </div>

@@ -697,36 +697,7 @@ export default function KanbanBoard() {
       });
     }
 
-    // Cards: toasts when a card is assigned to the current user
-    if (cardsFilter) {
-      channel.on('postgres_changes', {
-        event: 'UPDATE', schema: 'public', table: 'kanban_cards', filter: cardsFilter
-      }, (payload: any) => {
-        try {
-          if (!currentUser) return;
-          const before = payload.old as any;
-          const after = payload.new as any;
-          const becameMine = after?.assignee_id === currentUser.id && before?.assignee_id !== currentUser.id;
-          if (becameMine) {
-            const cardTitle = String(after?.title || 'card');
-            toast.info(`Você foi atribuído(a) ao card "${cardTitle}"`);
-          }
-        } catch {}
-      });
-      channel.on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'kanban_cards', filter: cardsFilter
-      }, (payload: any) => {
-        try {
-          if (!currentUser) return;
-          const after = payload.new as any;
-          const isMine = after?.assignee_id === currentUser.id;
-          if (isMine) {
-            const cardTitle = String(after?.title || 'card');
-            toast.info(`Novo card "${cardTitle}" atribuído a você`);
-          }
-        } catch {}
-      });
-    }
+    // (removed duplicate assignment toasts block)
 
     channel.subscribe();
     realtimeRef.current = channel;

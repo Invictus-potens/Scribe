@@ -45,9 +45,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         const soundOn = localStorage.getItem('settings:notificationSound') !== 'false';
         if (soundOn) {
           const selectedFile = localStorage.getItem('settings:notificationSoundFile') || '';
+          const volumeStr = localStorage.getItem('settings:notificationSoundVolume') || '0.6';
+          const parsed = parseFloat(volumeStr);
+          const volume = isNaN(parsed) ? 0.6 : Math.max(0, Math.min(1, parsed));
           const src = selectedFile ? `/notification-sounds/${selectedFile}` : '/notif.mp3';
           const audio = new Audio(src);
-          audio.volume = 0.6;
+          audio.volume = volume;
           void audio.play();
         }
       }

@@ -45,6 +45,11 @@ export default function Header({
     if (typeof window === 'undefined') return '';
     return localStorage.getItem('settings:notificationSoundFile') || '';
   });
+  const [soundVolume, setSoundVolume] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0.6;
+    const v = parseFloat(localStorage.getItem('settings:notificationSoundVolume') || '0.6');
+    return isNaN(v) ? 0.6 : Math.max(0, Math.min(1, v));
+  });
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -83,8 +88,13 @@ export default function Header({
   useEffect(() => {
     const loadSounds = async () => {
       try {
-        const res = await fetch('/notification-sounds/manifest.json');
-        if (!res.ok) return;
+        // cache-busting
+        let res = await fetch(`/notification-sounds/manifest.json?ts=${Date.now()}`);
+        if (!res.ok) {
+          // fallback relative
+          res = await fetch(`notification-sounds/manifest.json?ts=${Date.now()}`);
+        }
+        if (!res.ok) { setSoundList([]); return; }
         const json = await res.json();
         setSoundList(Array.isArray(json?.sounds) ? json.sounds : []);
       } catch {
@@ -355,19 +365,59 @@ export default function Header({
                         try { localStorage.setItem('settings:notificationSoundFile', v); } catch {}
                       }}
                       className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-gray-800 dark:text-gray-200"
+                      disabled={soundList.length === 0}
                     >
                       <option value="">Padrão</option>
                       {soundList.map((s) => (
                         <option key={s.file} value={s.file}>{s.label || s.file}</option>
                       ))}
                     </select>
-                    <div className="flex items-center gap-2 mt-2">
+                    {soundList.length === 0 && (
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Nenhum som encontrado em <code className="px-1">/notification-sounds</code>.
+                        <button
+                          onClick={async () => {
+                            try {
+                              let res = await fetch(`/notification-sounds/manifest.json?ts=${Date.now()}`);
+                              if (!res.ok) {
+                                res = await fetch(`notification-sounds/manifest.json?ts=${Date.now()}`);
+                              }
+                              if (!res.ok) return;
+                              const json = await res.json();
+                              setSoundList(Array.isArray(json?.sounds) ? json.sounds : []);
+                            } catch {}
+                          }}
+                          className="ml-2 underline"
+                        >
+                          Recarregar
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 mt-3">
+                      <div className="flex items-center gap-2 flex-1">
+                        <label htmlFor="notif-sound-volume" className="text-gray-700 dark:text-gray-300">Volume</label>
+                        <input
+                          id="notif-sound-volume"
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          value={soundVolume}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            setSoundVolume(v);
+                            try { localStorage.setItem('settings:notificationSoundVolume', String(v)); } catch {}
+                          }}
+                          className="flex-1"
+                        />
+                        <span className="w-10 text-right text-gray-600 dark:text-gray-300">{Math.round(soundVolume * 100)}%</span>
+                      </div>
                       <button
                         onClick={async () => {
                           try {
                             const src = selectedSoundFile ? `/notification-sounds/${selectedSoundFile}` : '/notif.mp3';
                             const audio = new Audio(src);
-                            audio.volume = 0.6;
+                            audio.volume = soundVolume;
                             await audio.play();
                           } catch {}
                         }}

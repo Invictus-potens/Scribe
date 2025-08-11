@@ -1,18 +1,8 @@
 -- Adiciona coluna de permissões e função utilitária, com políticas básicas de RLS
 
 -- 1) Coluna de permissões no compartilhamento de boards
-alter table if exists public.shared_kanban_boards
-add column if not exists permissions jsonb
-  default '{
-    "view_board": true,
-    "manage_board": false,
-    "manage_columns": true,
-    "create_card": true,
-    "edit_card": true,
-    "move_card": true,
-    "delete_card": false,
-    "manage_members": false
-  }'::jsonb;
+-- Observação: essas migrações foram movidas para `migrations/2025-08-11-company-kanban-ext.sql`.
+-- Aplique-as diretamente no Supabase (SQL Editor) conforme instruções no README da migração.
 
 -- 2) Função utilitária para checar permissão a partir do board
 create or replace function public.has_board_permission(p_board_id uuid, p_perm text)
@@ -187,6 +177,75 @@ exception when others then
 end;
 $$;
 
+-- 7) Auditoria e RPCs de membros foram movidos para `migrations/2025-08-11-company-kanban-ext.sql`.
+
+-- 10) Ajuste no get_user_accessible_boards para retornar também company_id quando compartilhado
+create or replace function public.get_user_accessible_boards()
+returns table (
+  id uuid,
+  title text,
+  created_at timestamptz,
+  updated_at timestamptz,
+  is_shared boolean,
+  company_id uuid,
+  company_name text,
+  permissions jsonb
+)
+language sql
+security definer
+stable
+as $$
+  with combined as (
+    -- próprios
+    select b.id, b.title, b.created_at, b.updated_at,
+           false as is_shared,
+           null::uuid as company_id,
+           null::text as company_name,
+           '{
+             "view_board": true,
+             "manage_board": true,
+             "manage_columns": true,
+             "create_card": true,
+             "edit_card": true,
+             "move_card": true,
+             "delete_card": true,
+             "manage_members": true
+           }'::jsonb as permissions
+    from public.kanban_boards b
+    where b.user_id = auth.uid()
+
+    union all
+
+    -- compartilhados via empresa em que o usuário é membro aceito
+    select kb.id, kb.title, kb.created_at, kb.updated_at,
+           true as is_shared,
+           c.id as company_id,
+           c.name as company_name,
+           coalesce(skb.permissions, '{
+             "view_board": true,
+             "manage_board": false,
+             "manage_columns": true,
+             "create_card": true,
+             "edit_card": true,
+             "move_card": true,
+             "delete_card": false,
+             "manage_members": false
+           }'::jsonb) as permissions
+    from public.shared_kanban_boards skb
+    join public.kanban_boards kb on kb.id = skb.board_id
+    join public.companies c on c.id = skb.company_id
+    join public.company_members cm on cm.company_id = skb.company_id
+    where cm.user_id = auth.uid() and cm.status = 'accepted'
+  )
+  select *
+  from (
+    select distinct on (id) *
+    from combined
+    order by id, is_shared asc, created_at desc
+  ) dedup
+  order by created_at desc;
+$$;
+
 -- 6.2 convidar usuário com validações (não convidar a si mesmo, evitar duplicatas/pending)
 drop function if exists public.invite_user_to_company(uuid, text, text);
 create or replace function public.invite_user_to_company(
@@ -283,6 +342,7 @@ begin
     );
   end if;
 
+  perform public.log_company_action(p_company_id, 'invite_sent', v_target_user_id, jsonb_build_object('role', coalesce(p_role,'member')));
   return query select true, 'User invited successfully';
 end;
 $$;
@@ -333,6 +393,7 @@ begin
     set role = (case when coalesce(p_new_role,'member') in ('owner','admin','member') then coalesce(p_new_role,'member') else 'member' end)
   where company_id = p_company_id and user_id = p_target_user_id;
 
+  perform public.log_company_action(p_company_id, 'role_updated', p_target_user_id, jsonb_build_object('new_role', p_new_role));
   return query select true, 'Role updated';
 end;
 $$;

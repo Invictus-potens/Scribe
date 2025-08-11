@@ -15,6 +15,10 @@ export default function CompanyManager() {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [companyMembers, setCompanyMembers] = useState<CompanyMember[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [memberRoleFilter, setMemberRoleFilter] = useState<'all' | 'owner' | 'admin' | 'member' | 'pending' | 'accepted' | 'declined'>('all');
+  const [memberSort, setMemberSort] = useState<'name' | 'role' | 'status' | 'invited_at'>('invited_at');
   const [memberOps, setMemberOps] = useState<Record<string, 'role' | 'remove' | null>>({});
   const [showEditCompanyModal, setShowEditCompanyModal] = useState(false);
   const [editCompany, setEditCompany] = useState<{ name: string; description: string }>({ name: '', description: '' });
@@ -128,8 +132,12 @@ export default function CompanyManager() {
     // Prepare edit form with current company values
     setEditCompany({ name: company.name, description: company.description || '' });
     try {
-      const { data: members } = await companyHelpers.getCompanyMembers(company.id);
+      const [{ data: members }, { data: logs }] = await Promise.all([
+        companyHelpers.getCompanyMembers(company.id),
+        companyHelpers.getCompanyAuditLogs(company.id)
+      ]);
       setCompanyMembers(members || []);
+      setAuditLogs(logs || []);
       setShowMembersModal(true);
     } catch (error) {
       console.error('Error loading members:', error);
@@ -175,6 +183,42 @@ export default function CompanyManager() {
     }
   };
 
+  const handleResendInvite = async (member: CompanyMember) => {
+    if (!selectedCompany) return;
+    if (member.status !== 'pending') return;
+    try {
+      // Reenviar convite: chamar invite novamente pelo email conhecido
+      if (!member.user_email) return;
+      const result = await companyHelpers.inviteUserToCompany(selectedCompany.id, member.user_email, (member.role === 'admin' ? 'admin' : 'member'));
+      if (!result.success) {
+        setBanner({ type: 'error', text: result.message || 'Falha ao reenviar convite.' });
+        return;
+      }
+      setBanner({ type: 'success', text: 'Convite reenviado.' });
+      const { data: logs } = await companyHelpers.getCompanyAuditLogs(selectedCompany.id);
+      setAuditLogs(logs || []);
+    } catch (e) {
+      console.error(e);
+      setBanner({ type: 'error', text: 'Erro ao reenviar convite.' });
+    }
+  };
+
+  const handleRevokeInvite = async (member: CompanyMember) => {
+    if (!selectedCompany) return;
+    if (member.status !== 'pending') return;
+    try {
+      const { error } = await companyHelpers.revokeInvitation(selectedCompany.id, member.user_id);
+      if (error) { setBanner({ type: 'error', text: 'Erro ao revogar convite.' }); return; }
+      setCompanyMembers(prev => prev.filter(m => m.id !== member.id));
+      setBanner({ type: 'success', text: 'Convite revogado.' });
+      const { data: logs } = await companyHelpers.getCompanyAuditLogs(selectedCompany.id);
+      setAuditLogs(logs || []);
+    } catch (e) {
+      console.error(e);
+      setBanner({ type: 'error', text: 'Erro inesperado ao revogar convite.' });
+    }
+  };
+
   const handleUpdateCompany = async () => {
     if (!selectedCompany) return;
     const newName = editCompany.name.trim();
@@ -192,6 +236,29 @@ export default function CompanyManager() {
     } catch (e) {
       console.error('Erro ao atualizar empresa', e);
       setBanner({ type: 'error', text: 'Erro ao atualizar empresa.' });
+    }
+  };
+
+  const handleTransferOwnership = async (target: CompanyMember) => {
+    if (!selectedCompany) return;
+    if (currentUserRole !== 'owner') return;
+    if (target.user_id === currentUser?.id) return;
+    try {
+      const ok = typeof window !== 'undefined' ? window.confirm(`Transferir propriedade para ${target.user_full_name || target.user_email || target.user_id.slice(0,8)}?`) : true;
+      if (!ok) return;
+      const { success, message } = await companyHelpers.transferCompanyOwnership(selectedCompany.id, target.user_id);
+      if (!success) {
+        setBanner({ type: 'error', text: message || 'Falha ao transferir propriedade' });
+        return;
+      }
+      setBanner({ type: 'success', text: 'Propriedade transferida com sucesso.' });
+      // Recarregar membros e company
+      const { data: members } = await companyHelpers.getCompanyMembers(selectedCompany.id);
+      setCompanyMembers(members || []);
+      setSelectedCompany(c => c ? { ...c, owner_id: target.user_id } as any : c);
+    } catch (e) {
+      console.error(e);
+      setBanner({ type: 'error', text: 'Erro inesperado ao transferir propriedade.' });
     }
   };
 
@@ -408,14 +475,81 @@ export default function CompanyManager() {
             </div>
 
             <div className="space-y-3">
-              {companyMembers.map((member: CompanyMember) => (
+              <div className="flex items-center gap-2 mb-2">
+                <div className="relative flex-1">
+                  <i className="ri-search-line w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                  <input
+                    value={memberSearch}
+                    onChange={(e) => setMemberSearch(e.target.value)}
+                    placeholder="Buscar por nome ou email..."
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
+                  />
+                </div>
+                <select
+                  value={memberRoleFilter}
+                  onChange={(e) => setMemberRoleFilter(e.target.value as any)}
+                  className="px-2 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
+                  title="Filtrar por role/status"
+                >
+                  <option value="all">Todos</option>
+                  <option value="owner">Owner</option>
+                  <option value="admin">Admin</option>
+                  <option value="member">Member</option>
+                  <option value="pending">Pendentes</option>
+                  <option value="accepted">Ativos</option>
+                  <option value="declined">Recusados</option>
+                </select>
+                <select
+                  value={memberSort}
+                  onChange={(e) => setMemberSort(e.target.value as any)}
+                  className="px-2 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded"
+                  title="Ordenar por"
+                >
+                  <option value="invited_at">Convidado em</option>
+                  <option value="name">Nome</option>
+                  <option value="role">Função</option>
+                  <option value="status">Status</option>
+                </select>
+              </div>
+              {companyMembers
+                .filter((m) => {
+                  if (memberRoleFilter === 'all') return true;
+                  if (memberRoleFilter === 'pending' || memberRoleFilter === 'accepted' || memberRoleFilter === 'declined') {
+                    return m.status === memberRoleFilter;
+                  }
+                  return m.role === memberRoleFilter;
+                })
+                .filter((m) => {
+                  const q = memberSearch.trim().toLowerCase();
+                  if (!q) return true;
+                  const name = (m.user_full_name || '').toLowerCase();
+                  const email = (m.user_email || '').toLowerCase();
+                  const uid = (m.user_id || '').toLowerCase();
+                  return name.includes(q) || email.includes(q) || uid.includes(q);
+                })
+                .sort((a, b) => {
+                  if (memberSort === 'invited_at') return (new Date(a.invited_at).getTime() - new Date(b.invited_at).getTime());
+                  if (memberSort === 'name') return (a.user_full_name || '').localeCompare(b.user_full_name || '');
+                  if (memberSort === 'role') return a.role.localeCompare(b.role);
+                  if (memberSort === 'status') return a.status.localeCompare(b.status);
+                  return 0;
+                })
+                .map((member: CompanyMember) => (
                 <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <div className="min-w-0">
-                    <div className="font-medium text-gray-800 dark:text-gray-200 truncate">
-                      {member.user_id === currentUser?.id ? 'Você' : `Usuário ${member.user_id.slice(0, 8)}`}
-                    </div>
-                    <div className="text-sm text-gray-500 truncate">
-                      {member.status === 'pending' ? 'Pendente' : 'Ativo'}
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-xs text-gray-700 dark:text-gray-200">
+                        {(member.user_full_name || member.user_email || 'U').slice(0, 1).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-800 dark:text-gray-200 truncate">
+                          {member.user_id === currentUser?.id ? 'Você' : (member.user_full_name || `Usuário ${member.user_id.slice(0, 8)}`)}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">{member.user_email || ''}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {member.status === 'pending' ? 'Pendente' : member.status === 'accepted' ? 'Ativo' : 'Recusado'}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -433,6 +567,33 @@ export default function CompanyManager() {
                     ) : (
                       <span className="text-xs text-gray-500">{member.role}</span>
                     )}
+                    {currentUserRole === 'owner' && member.role !== 'owner' && (
+                      <button
+                        onClick={() => handleTransferOwnership(member)}
+                        className="p-2 text-amber-600 hover:text-amber-700"
+                        title="Transferir propriedade"
+                      >
+                        <i className="ri-vip-crown-2-line w-4 h-4"></i>
+                      </button>
+                    )}
+                    {member.status === 'pending' && canManageMembers && (
+                      <>
+                        <button
+                          onClick={() => handleResendInvite(member)}
+                          className="p-2 text-blue-600 hover:text-blue-700"
+                          title="Reenviar convite"
+                        >
+                          <i className="ri-send-plane-2-line w-4 h-4"></i>
+                        </button>
+                        <button
+                          onClick={() => handleRevokeInvite(member)}
+                          className="p-2 text-gray-600 hover:text-gray-700"
+                          title="Revogar convite"
+                        >
+                          <i className="ri-close-circle-line w-4 h-4"></i>
+                        </button>
+                      </>
+                    )}
                     {canManageMembers && member.role !== 'owner' && (
                       <button
                         onClick={() => handleRemoveMember(member)}
@@ -449,6 +610,33 @@ export default function CompanyManager() {
               {companyMembers.length === 0 && (
                 <div className="text-sm text-gray-500 dark:text-gray-400 p-3 bg-gray-50 dark:bg-gray-700 rounded">Nenhum membro ainda.</div>
               )}
+            </div>
+            <div className="mt-4">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Auditoria recente</h4>
+              <div className="max-h-40 overflow-y-auto space-y-2 text-xs">
+                {auditLogs.map((log) => {
+                  const actor = companyMembers.find(m => m.user_id === log.actor_user_id);
+                  const target = companyMembers.find(m => m.user_id === log.target_user_id);
+                  const actorName = actor?.user_full_name || actor?.user_email || (log.actor_user_id ? String(log.actor_user_id).slice(0,8) : '');
+                  const targetName = target?.user_full_name || target?.user_email || (log.target_user_id ? String(log.target_user_id).slice(0,8) : '');
+                  let text = log.action;
+                  if (log.action === 'invite_sent') text = `Convite enviado para ${targetName}`;
+                  if (log.action === 'role_updated') text = `Função de ${targetName} atualizada`;
+                  if (log.action === 'ownership_transferred') text = `Propriedade transferida para ${targetName}`;
+                  return (
+                    <div key={log.id} className="p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                      <div className="flex items-center justify-between">
+                        <span className="truncate">{text}</span>
+                        <span className="text-gray-500">{new Date(log.created_at).toLocaleString()}</span>
+                      </div>
+                      <div className="text-gray-500 mt-1">Por: {actorName}</div>
+                    </div>
+                  );
+                })}
+                {auditLogs.length === 0 && (
+                  <div className="p-2 text-gray-500">Sem eventos.</div>
+                )}
+              </div>
             </div>
           </div>
         </div>

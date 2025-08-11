@@ -18,6 +18,23 @@ export interface CompanyMember {
   invited_at: string;
   joined_at?: string;
   status: 'pending' | 'accepted' | 'declined';
+  user_full_name?: string;
+  user_email?: string;
+}
+
+export interface CompanyMemberOption {
+  user_id: string;
+  label: string;
+}
+
+export interface CompanyAuditLog {
+  id: string;
+  company_id: string;
+  actor_user_id: string;
+  action: string;
+  target_user_id?: string | null;
+  metadata?: any;
+  created_at: string;
 }
 
 export interface SharedKanbanBoard {
@@ -45,6 +62,7 @@ export interface AccessibleBoardMeta {
   created_at: string;
   updated_at: string;
   is_shared: boolean;
+  company_id?: string | null;
   company_name: string | null;
   permissions: BoardPermissions;
 }
@@ -119,14 +137,20 @@ export const companyHelpers = {
 
   // Company Members
   async getCompanyMembers(companyId: string): Promise<{ data: CompanyMember[] | null; error: any }> {
-    // Avoid recursive joins that can trigger RLS recursion.
+    // Usa RPC segura que agrega dados do perfil (nome/email) com RLS correto
     const { data, error } = await supabase
-      .from('company_members')
-      .select('*')
-      .eq('company_id', companyId)
-      .order('invited_at', { ascending: true });
+      .rpc('get_company_members_with_profiles', { p_company_id: companyId });
 
-    return { data, error };
+    return { data: (data as CompanyMember[]) || null, error };
+  },
+
+  async getCompanyMemberOptions(companyId: string): Promise<{ data: CompanyMemberOption[]; error: any }> {
+    const { data, error } = await this.getCompanyMembers(companyId);
+    if (error) return { data: [], error };
+    const options = (data || [])
+      .filter(m => m.status === 'accepted')
+      .map(m => ({ user_id: m.user_id, label: m.user_full_name || m.user_email || m.user_id.slice(0, 8) }));
+    return { data: options, error: null };
   },
 
   async updateMemberRole(
@@ -147,6 +171,16 @@ export const companyHelpers = {
     return { error: null };
   },
 
+  async transferCompanyOwnership(companyId: string, newOwnerUserId: string): Promise<{ success: boolean; message: string }> {
+    const { data, error } = await supabase.rpc('transfer_company_ownership', {
+      p_company_id: companyId,
+      p_new_owner_user_id: newOwnerUserId
+    });
+    if (error) return { success: false, message: error.message };
+    const result = Array.isArray(data) ? data[0] : data;
+    return { success: !!result?.success, message: result?.message || '' };
+  },
+
   async inviteUserToCompany(companyId: string, userEmail: string, role: 'admin' | 'member' = 'member'): Promise<{ success: boolean; message: string }> {
     const { data, error } = await supabase.rpc('invite_user_to_company', {
       p_company_id: companyId,
@@ -164,6 +198,17 @@ export const companyHelpers = {
     }
     const result = Array.isArray(data) ? data[0] : data;
     return { success: !!result?.success, message: result?.message || '' };
+  },
+
+  async revokeInvitation(companyId: string, userId: string): Promise<{ error: any }> {
+    // Only pending invites can be revoked
+    const { error } = await supabase
+      .from('company_members')
+      .delete()
+      .eq('company_id', companyId)
+      .eq('user_id', userId)
+      .eq('status', 'pending');
+    return { error };
   },
 
   async acceptInvitation(companyId: string, _userId: string): Promise<{ error: any }> {
@@ -194,6 +239,16 @@ export const companyHelpers = {
       .eq('user_id', userId);
 
     return { error };
+  },
+
+  async getCompanyAuditLogs(companyId: string): Promise<{ data: CompanyAuditLog[] | null; error: any }> {
+    const { data, error } = await supabase
+      .from('company_audit_logs')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    return { data: (data as CompanyAuditLog[]) || null, error };
   },
 
   // Shared Kanban Boards
@@ -269,6 +324,7 @@ export const companyHelpers = {
       created_at: row.created_at,
       updated_at: row.updated_at,
       is_shared: row.is_shared,
+      company_id: row.company_id ?? null,
       company_name: row.company_name ?? null,
       permissions: row.permissions as BoardPermissions
     })) as AccessibleBoardMeta[];

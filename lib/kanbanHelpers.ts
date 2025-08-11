@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { authHelpers } from './supabase';
 
 export interface KanbanCard {
   id: string;
@@ -6,6 +7,7 @@ export interface KanbanCard {
   title: string;
   description?: string;
   assignee?: string;
+  assignee_id?: string | null;
   priority: 'low' | 'medium' | 'high';
   due_date?: string;
   tags?: string[];
@@ -19,6 +21,7 @@ export interface KanbanColumn {
   board_id: string;
   title: string;
   order_index: number;
+  wip_limit?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -33,6 +36,16 @@ export interface KanbanBoard {
 
 export interface KanbanBoardWithData extends KanbanBoard {
   columns: (KanbanColumn & { cards: KanbanCard[] })[];
+}
+
+export interface KanbanComment {
+  id: string;
+  card_id: string;
+  user_id: string;
+  content: string;
+  mentions?: string[] | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export const kanbanHelpers = {
@@ -106,6 +119,16 @@ export const kanbanHelpers = {
       .select()
       .single();
 
+    return { data, error };
+  },
+
+  async updateColumnFields(columnId: string, updates: Partial<KanbanColumn>): Promise<{ data: KanbanColumn | null; error: any }> {
+    const { data, error } = await supabase
+      .from('kanban_columns')
+      .update(updates as any)
+      .eq('id', columnId)
+      .select()
+      .single();
     return { data, error };
   },
 
@@ -245,5 +268,45 @@ export const kanbanHelpers = {
     };
 
     return { data: boardWithData, error: null };
+  },
+
+  // Comments
+  async getCardComments(cardId: string): Promise<{ data: KanbanComment[] | null; error: any }> {
+    const { data, error } = await supabase
+      .from('kanban_card_comments')
+      .select('*')
+      .eq('card_id', cardId)
+      .order('created_at', { ascending: true });
+    return { data: (data as KanbanComment[]) || null, error };
+  },
+
+  async addCardComment(cardId: string, content: string, mentions?: string[]): Promise<{ data: KanbanComment | null; error: any }> {
+    const { user } = await authHelpers.getCurrentUser();
+    if (!user) return { data: null, error: { message: 'Not authenticated' } } as any;
+    const payload: any = { card_id: cardId, user_id: user.id, content, mentions: mentions && mentions.length ? mentions : null };
+    const { data, error } = await supabase
+      .from('kanban_card_comments')
+      .insert([payload])
+      .select()
+      .single();
+    return { data: (data as KanbanComment) || null, error };
+  },
+
+  async updateCardComment(commentId: string, content: string): Promise<{ data: KanbanComment | null; error: any }> {
+    const { data, error } = await supabase
+      .from('kanban_card_comments')
+      .update({ content })
+      .eq('id', commentId)
+      .select()
+      .single();
+    return { data: (data as KanbanComment) || null, error };
+  },
+
+  async deleteCardComment(commentId: string): Promise<{ error: any }> {
+    const { error } = await supabase
+      .from('kanban_card_comments')
+      .delete()
+      .eq('id', commentId);
+    return { error };
   }
 }; 

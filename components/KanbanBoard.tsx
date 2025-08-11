@@ -22,29 +22,44 @@ export default function KanbanBoard() {
   const [renameBoardTitle, setRenameBoardTitle] = useState('');
   const [showNewColumnModal, setShowNewColumnModal] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
+  const [cardsSearch, setCardsSearch] = useState('');
+  const [cardsFilterPriority, setCardsFilterPriority] = useState<'all' | 'low' | 'medium' | 'high'>('all');
+  const [cardsFilterAssignee, setCardsFilterAssignee] = useState<string>('all');
   const [creatingCard, setCreatingCard] = useState(false);
   const [newCardColumn, setNewCardColumn] = useState('');
   const [draggedCard, setDraggedCard] = useState<KanbanCard | null>(null);
   const [dragOverColumnId, setDragOverColumnId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const columnRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const columnsRowRef = useRef<HTMLDivElement | null>(null);
   const [newCard, setNewCard] = useState({
     title: '',
     description: '',
     assignee: '',
+    assignee_id: '' as string | undefined,
     priority: 'medium' as 'low' | 'medium' | 'high',
     dueDate: '',
     tags: [] as string[]
   });
   const [showShareModal, setShowShareModal] = useState(false);
   const [, setBanner] = useState<{ type: 'info' | 'error' | 'success'; text: string } | null>(null);
+  const [assigneeOptions, setAssigneeOptions] = useState<string[]>([]);
+  const [assigneeMemberOptions, setAssigneeMemberOptions] = useState<{ user_id: string; label: string }[]>([]);
+  const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
+  const [dragOverColumnIndex, setDragOverColumnIndex] = useState<number | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [confirmDeleteLoading, setConfirmDeleteLoading] = useState(false);
   const [confirmDeleteCardOpen, setConfirmDeleteCardOpen] = useState(false);
   const [confirmDeleteCardLoading, setConfirmDeleteCardLoading] = useState(false);
   const [pendingDeleteCard, setPendingDeleteCard] = useState<KanbanCard | null>(null);
   const [showEditCardModal, setShowEditCardModal] = useState(false);
-  const [editCard, setEditCard] = useState<{ id: string; column_id: string; title: string; description: string; assignee: string; priority: 'low'|'medium'|'high'; dueDate: string } | null>(null);
+  const [editCard, setEditCard] = useState<{ id: string; column_id: string; title: string; description: string; assignee: string; assignee_id?: string; priority: 'low'|'medium'|'high'; dueDate: string } | null>(null);
+  const [cardComments, setCardComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionResults, setMentionResults] = useState<{ user_id: string; label: string }[]>([]);
+  const mentionRef = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
   const realtimeRef = useRef<any>(null);
 
@@ -254,6 +269,23 @@ export default function KanbanBoard() {
     if (!draggedCard || !activeBoard) return;
     const meta = boards.find(b => b.id === activeBoard.id);
     const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+    // WIP enforcement: block if target exceeds limit and user can't override
+    const targetColumn = activeBoard.columns.find(c => c.id === targetColumnId);
+    if (targetColumn && typeof (targetColumn as any).wip_limit === 'number') {
+      const limit = (targetColumn as any).wip_limit as number;
+      const isSameColumn = draggedCard.column_id === targetColumnId;
+      const targetCount = targetColumn.cards.length + (isSameColumn ? 0 : 1);
+      if (limit >= 0 && targetCount > limit) {
+        if (!can('manage_columns')) {
+          toast.info('Limite WIP atingido nesta coluna.');
+          setDraggedCard(null); setDragOverColumnId(null); setDragOverIndex(null);
+          return;
+        } else {
+          const ok = typeof window !== 'undefined' ? window.confirm('Esta coluna excederá o WIP. Deseja forçar a movimentação?') : true;
+          if (!ok) { setDraggedCard(null); setDragOverColumnId(null); setDragOverIndex(null); return; }
+        }
+      }
+    }
     if (!can('move_card')) {
       toast.info(t('kanban.noPermissionCreateCards'));
       return;
@@ -299,6 +331,53 @@ export default function KanbanBoard() {
     }
   };
 
+  // Column drag-n-drop handlers
+  const handleColumnDragStart = (e: React.DragEvent, columnId: string) => {
+    const meta = boards.find(b => b.id === activeBoard?.id);
+    const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+    if (!can('manage_columns')) return;
+    setDraggedColumnId(columnId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleColumnsDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!draggedColumnId || !activeBoard) return;
+    e.preventDefault();
+    const container = columnsRowRef.current;
+    if (!container) return;
+    const children = Array.from(container.children) as HTMLElement[];
+    const mouseX = e.clientX;
+    let idx = children.length;
+    for (let i = 0; i < children.length; i++) {
+      const rect = children[i].getBoundingClientRect();
+      const midX = rect.left + rect.width / 2;
+      if (mouseX < midX) { idx = i; break; }
+    }
+    setDragOverColumnIndex(idx);
+  };
+
+  const handleColumnsDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    if (!draggedColumnId || dragOverColumnIndex === null || !activeBoard) { setDraggedColumnId(null); setDragOverColumnIndex(null); return; }
+    e.preventDefault();
+    try {
+      const currentIdx = activeBoard.columns.findIndex(c => c.id === draggedColumnId);
+      if (currentIdx < 0) return;
+      const cols = [...activeBoard.columns];
+      const [moved] = cols.splice(currentIdx, 1);
+      const targetIdx = Math.max(0, Math.min(dragOverColumnIndex, cols.length));
+      cols.splice(targetIdx, 0, moved);
+      const updated = { ...activeBoard, columns: cols.map((c, i) => ({ ...c, order_index: i })) };
+      setActiveBoard(updated);
+      await kanbanHelpers.reorderColumns(activeBoard.id, cols.map(c => c.id));
+    } catch (err) {
+      console.error('Error reordering columns:', err);
+      toast.error('Erro ao reordenar colunas');
+    } finally {
+      setDraggedColumnId(null);
+      setDragOverColumnIndex(null);
+    }
+  };
+
   const handleCreateCard = async () => {
     if (!newCard.title.trim() || !activeBoard) return;
     const meta = boards.find(b => b.id === activeBoard.id);
@@ -313,6 +392,14 @@ export default function KanbanBoard() {
       // Find the target column
       const targetColumn = activeBoard.columns.find(col => col.id === newCardColumn);
       if (!targetColumn) return;
+      // WIP enforcement on create
+      if (typeof (targetColumn as any).wip_limit === 'number') {
+        const limit = (targetColumn as any).wip_limit as number;
+        if (limit >= 0 && targetColumn.cards.length >= limit && !can('manage_columns')) {
+          toast.info('Limite WIP atingido nesta coluna.');
+          return;
+        }
+      }
 
       // Create card in database
       const { data: card, error } = await kanbanHelpers.createCard({
@@ -320,6 +407,7 @@ export default function KanbanBoard() {
         title: newCard.title,
         description: newCard.description,
         assignee: newCard.assignee,
+        assignee_id: newCard.assignee_id,
         priority: newCard.priority,
         due_date: newCard.dueDate,
         tags: newCard.tags,
@@ -353,6 +441,7 @@ export default function KanbanBoard() {
         title: '',
         description: '',
         assignee: '',
+        assignee_id: undefined,
         priority: 'medium',
         dueDate: '',
         tags: []
@@ -384,6 +473,32 @@ export default function KanbanBoard() {
       toast.error(t('kanban.loadBoardError'));
     }
   };
+
+  // Load assignee options from company members when board is shared
+  useEffect(() => {
+    const loadAssignees = async () => {
+      try {
+        const meta = boards.find(b => b.id === activeBoard?.id);
+        if (meta?.is_shared && (meta as any).company_id) {
+          const companyId = (meta as any).company_id as string;
+          const [{ data: members }, { data: memberOptions }] = await Promise.all([
+            companyHelpers.getCompanyMembers(companyId),
+            companyHelpers.getCompanyMemberOptions(companyId)
+          ]);
+          const names = (members || []).map((m: any) => m.user_full_name || m.user_email).filter(Boolean);
+          setAssigneeOptions(Array.from(new Set(names)) as string[]);
+          setAssigneeMemberOptions(memberOptions || []);
+        } else {
+          setAssigneeOptions([]);
+          setAssigneeMemberOptions([]);
+        }
+      } catch {
+        setAssigneeOptions([]);
+        setAssigneeMemberOptions([]);
+      }
+    };
+    loadAssignees();
+  }, [activeBoard, boards]);
 
   // ESC para fechar modal de novo card (hook deve ser chamado sempre, sem retornar antes)
   useEffect(() => {
@@ -509,6 +624,25 @@ export default function KanbanBoard() {
     };
   }, [activeBoard, currentUser]);
 
+  // Realtime for comments of an open card
+  useEffect(() => {
+    if (!showEditCardModal || !editCard) return;
+    const channel = supabase.channel(`realtime:card-comments:${editCard.id}`);
+    channel.on('postgres_changes', { event: '*', schema: 'public', table: 'kanban_card_comments', filter: `card_id=eq.${editCard.id}` }, (payload: any) => {
+      setCardComments(prev => {
+        if (payload.eventType === 'INSERT') return [...prev, payload.new];
+        if (payload.eventType === 'UPDATE') return prev.map(c => c.id === payload.new.id ? payload.new : c);
+        if (payload.eventType === 'DELETE') return prev.filter(c => c.id !== payload.old.id);
+        return prev;
+      });
+    });
+    channel.subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [showEditCardModal, editCard]);
+
+  const userIdToLabel = (id: string) => (assigneeMemberOptions.find(o => o.user_id === id)?.label) || id;
+  const renderCommentText = (text: string) => text.replace(/<@([0-9a-fA-F-]{36})>/g, (_, uid) => `@${userIdToLabel(uid)}`);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -545,7 +679,7 @@ export default function KanbanBoard() {
       <div className="flex items-center justify-between p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('kanban.title')}</h1>
-          <select
+           <select
             value={activeBoard.id}
             onChange={(e) => handleBoardChange(e.target.value)}
             className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm pr-8"
@@ -559,6 +693,43 @@ export default function KanbanBoard() {
           </select>
         </div>
         <div className="flex items-center space-x-2">
+          <div className="hidden md:flex items-center space-x-2 mr-2">
+            <div className="relative">
+              <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+              <input
+                value={cardsSearch}
+                onChange={(e) => setCardsSearch(e.target.value)}
+                placeholder={t('kanban.searchCards')}
+                className="pl-9 pr-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 w-64"
+              />
+            </div>
+            <select
+              value={cardsFilterPriority}
+              onChange={(e) => setCardsFilterPriority(e.target.value as any)}
+              className="px-2 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
+              title={t('kanban.priority.all')}
+            >
+              <option value="all">{t('kanban.priority.all')}</option>
+              <option value="low">{t('kanban.priority.low')}</option>
+              <option value="medium">{t('kanban.priority.medium')}</option>
+              <option value="high">{t('kanban.priority.high')}</option>
+            </select>
+            <select
+              value={cardsFilterAssignee}
+              onChange={(e) => setCardsFilterAssignee(e.target.value)}
+              className="px-2 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm"
+              title={t('kanban.assignee.all')}
+            >
+              <option value="all">{t('kanban.assignee.all')}</option>
+              {assigneeMemberOptions.length > 0
+                ? assigneeMemberOptions.map(o => (
+                    <option key={o.user_id} value={o.user_id}>{o.label}</option>
+                  ))
+                : Array.from(new Set(activeBoard.columns.flatMap(c => (c.cards || []).map(cd => cd.assignee).filter(Boolean)))).map((name) => (
+                    <option key={String(name)} value={String(name)}>{String(name)}</option>
+                  ))}
+            </select>
+          </div>
           <button
             onClick={handleCreateBoard}
             className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-100 px-3 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 whitespace-nowrap"
@@ -643,21 +814,51 @@ export default function KanbanBoard() {
 
       {/* toasts substituem o banner local */}
 
-      <div className="flex-1 p-6 overflow-x-auto">
-        <div className="flex space-x-6 h-full min-w-max">
-          {activeBoard.columns.map(column => (
+      <div className="flex-1 p-6 overflow-x-auto" onDragOver={handleColumnsDragOver} onDrop={handleColumnsDrop}>
+        <div className="flex space-x-6 h-full min-w-max" ref={columnsRowRef}>
+          {activeBoard.columns.map(column => {
+            const filteredCards = column.cards
+              .filter(card => {
+                const q = cardsSearch.trim().toLowerCase();
+                if (!q) return true;
+                return (
+                  card.title.toLowerCase().includes(q) ||
+                  (card.description || '').toLowerCase().includes(q) ||
+                  (card.tags || []).some(tg => tg.toLowerCase().includes(q))
+                );
+              })
+              .filter(card => cardsFilterPriority === 'all' ? true : card.priority === cardsFilterPriority)
+              .filter(card => {
+                if (cardsFilterAssignee === 'all') return true;
+                // Prefer assignee_id match if options loaded
+                const opt = assigneeMemberOptions.find(o => o.label === cardsFilterAssignee || o.user_id === cardsFilterAssignee);
+                if (opt && (card as any).assignee_id) return (card as any).assignee_id === opt.user_id;
+                return (card.assignee || '') === cardsFilterAssignee;
+              });
+            return (
             <div
               key={column.id}
               className={`w-80 rounded-lg p-4 flex flex-col ${dragOverColumnId === column.id ? 'bg-gray-100 dark:bg-gray-600 border-2 border-blue-400' : 'bg-gray-50 dark:bg-gray-700'}`}
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDrop={(e) => handleDrop(e, column.id)}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className={`flex items-center justify-between mb-4 ${draggedColumnId === column.id ? 'opacity-60' : ''}`}
+                draggable={!!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_columns}
+                onDragStart={(e) => handleColumnDragStart(e, column.id)}
+              >
                 <h3 className="font-semibold text-gray-800 dark:text-gray-100">{column.title}</h3>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500 bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
-                    {column.cards.length}
+                    {filteredCards.length}/{column.cards.length}
                   </span>
+                  {typeof (column as any).wip_limit === 'number' && (
+                    <span
+                      className={`text-xs px-2 py-1 rounded ${column.cards.length > (column as any).wip_limit ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200'}`}
+                      title="WIP Limit"
+                    >
+                      WIP {(column as any).wip_limit}
+                    </span>
+                  )}
                   <button
                     onClick={() => {
                       const meta = boards.find(b => b.id === activeBoard.id);
@@ -676,11 +877,36 @@ export default function KanbanBoard() {
                   >
                     <i className="ri-add-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
                   </button>
+                  <button
+                    onClick={async () => {
+                      const meta = boards.find(b => b.id === activeBoard.id);
+                      const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+                      if (!can('manage_columns')) { toast.info('Sem permissão'); return; }
+                      const current = (column as any).wip_limit ?? '';
+                      const input = window.prompt('Definir WIP limit (vazio para remover)', String(current));
+                      if (input === null) return;
+                      const parsed = input.trim() === '' ? null : Math.max(0, Number(input));
+                      try {
+                        const { error } = await kanbanHelpers.updateColumnFields(column.id, { wip_limit: parsed as any });
+                        if (error) { toast.error('Erro ao salvar WIP'); return; }
+                        setActiveBoard(prev => prev ? ({
+                          ...prev,
+                          columns: prev.columns.map(c => c.id === column.id ? { ...c, wip_limit: parsed as any } : c)
+                        }) : prev);
+                      } catch { toast.error('Erro inesperado'); }
+                    }}
+                    disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_columns}
+                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                    title="Definir WIP limit"
+                    aria-label="Definir WIP limit"
+                  >
+                    <i className="ri-speed-up-line w-4 h-4"></i>
+                  </button>
                 </div>
               </div>
 
               <div className="space-y-3 flex-1" ref={(el) => { columnRefs.current[column.id] = el; }}>
-                {column.cards.map(card => (
+                {filteredCards.map(card => (
                   <div
                     key={card.id}
                     draggable={!!boards.find(b => b.id === activeBoard.id)?.permissions?.move_card}
@@ -715,16 +941,21 @@ export default function KanbanBoard() {
                     </div>
                     <div className="mt-2 flex items-center justify-end gap-2 text-xs">
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           setEditCard({
                             id: card.id,
                             column_id: card.column_id,
                             title: card.title,
                             description: card.description || '',
                             assignee: card.assignee || '',
+                            assignee_id: (card as any).assignee_id,
                             priority: card.priority,
                             dueDate: card.due_date ? card.due_date.slice(0, 10) : ''
                           } as any);
+                          try {
+                            const { data } = await kanbanHelpers.getCardComments(card.id);
+                            setCardComments(data || []);
+                          } catch {}
                           setShowEditCardModal(true);
                         }}
                         className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
@@ -748,7 +979,7 @@ export default function KanbanBoard() {
                 ))}
               </div>
             </div>
-          ))}
+          );})}
         </div>
       </div>
 
@@ -782,13 +1013,36 @@ export default function KanbanBoard() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('kanban.field.assignee')}</label>
-                <input
-                  type="text"
-                  value={newCard.assignee}
-                  onChange={(e) => setNewCard({ ...newCard, assignee: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  placeholder={t('kanban.field.assignee')}
-                />
+                {assigneeMemberOptions.length > 0 ? (
+                  <select
+                    value={newCard.assignee_id || ''}
+                    onChange={(e) => {
+                      const opt = assigneeMemberOptions.find(o => o.user_id === e.target.value);
+                      setNewCard({ ...newCard, assignee_id: e.target.value || undefined, assignee: opt?.label || '' });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                    title="Selecionar responsável"
+                  >
+                    <option value="">{t('kanban.assignee.all')}</option>
+                    {assigneeMemberOptions.map(o => (
+                      <option key={o.user_id} value={o.user_id}>{o.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    list="assignee-options"
+                    value={newCard.assignee}
+                    onChange={(e) => setNewCard({ ...newCard, assignee: e.target.value, assignee_id: undefined })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                    placeholder={t('kanban.field.assignee')}
+                  />
+                )}
+                <datalist id="assignee-options">
+                  {(assigneeOptions.length > 0 ? assigneeOptions : Array.from(new Set(activeBoard.columns.flatMap(c => (c.cards || []).map(cd => cd.assignee).filter(Boolean))))).map((name) => (
+                    <option key={String(name)} value={String(name)} />
+                  ))}
+                </datalist>
               </div>
 
               <div>
@@ -966,13 +1220,31 @@ export default function KanbanBoard() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assignee</label>
-                <input
-                  type="text"
-                  value={editCard.assignee}
-                  onChange={(e) => setEditCard({ ...(editCard as any), assignee: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
-                  placeholder="Assigned to"
-                />
+                {assigneeMemberOptions.length > 0 ? (
+                  <select
+                    value={(editCard as any)?.assignee_id || ''}
+                    onChange={(e) => {
+                      const opt = assigneeMemberOptions.find(o => o.user_id === e.target.value);
+                      setEditCard(ed => ({ ...(ed as any), assignee_id: e.target.value || undefined, assignee: opt?.label || '' } as any));
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                    title="Selecionar responsável"
+                  >
+                    <option value="">{t('kanban.assignee.all')}</option>
+                    {assigneeMemberOptions.map(o => (
+                      <option key={o.user_id} value={o.user_id}>{o.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    list="assignee-options"
+                    value={editCard.assignee}
+                    onChange={(e) => setEditCard({ ...(editCard as any), assignee: e.target.value, assignee_id: undefined } as any)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                    placeholder="Assigned to"
+                  />
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
@@ -996,6 +1268,116 @@ export default function KanbanBoard() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
                   title="Data de vencimento"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Comentários</label>
+                <div className="max-h-40 overflow-y-auto space-y-2 bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                  {cardComments.map((c: any) => (
+                    <div key={c.id} className="text-sm bg-white/60 dark:bg-gray-800/60 p-2 rounded border border-gray-200 dark:border-gray-600 group">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-xs text-gray-500">{new Date(c.created_at).toLocaleString()}</div>
+                        <div className="hidden group-hover:flex items-center gap-2 text-xs">
+                          <button
+                            onClick={async () => {
+                              const edited = window.prompt('Editar comentário', c.content)?.trim();
+                              if (!edited || edited === c.content) return;
+                              const { data, error } = await kanbanHelpers.updateCardComment(c.id, edited);
+                              if (!error && data) setCardComments(prev => prev.map(x => x.id === c.id ? data : x));
+                            }}
+                            className="px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-600"
+                          >Editar</button>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm('Excluir comentário?')) return;
+                              const { error } = await kanbanHelpers.deleteCardComment(c.id);
+                              if (!error) setCardComments(prev => prev.filter(x => x.id !== c.id));
+                            }}
+                            className="px-2 py-0.5 rounded bg-red-600 text-white"
+                          >Excluir</button>
+                        </div>
+                      </div>
+                      <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{renderCommentText(c.content)}</div>
+                    </div>
+                  ))}
+                  {cardComments.length === 0 && (
+                    <div className="text-xs text-gray-500">Sem comentários.</div>
+                  )}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <div className="relative flex-1" ref={mentionRef}>
+                    <input
+                      type="text"
+                      value={newComment}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setNewComment(v);
+                        const m = v.match(/(^|\s)@([^\s@]{0,40})$/);
+                        if (m) {
+                          const q = m[2].toLowerCase();
+                          setMentionQuery(q);
+                          const results = assigneeMemberOptions.filter(o => o.label.toLowerCase().includes(q));
+                          setMentionResults(results.slice(0, 8));
+                          setMentionOpen(results.length > 0);
+                        } else {
+                          setMentionOpen(false);
+                          setMentionQuery('');
+                          setMentionResults([]);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') { setMentionOpen(false); }
+                        if (e.key === 'Enter' && mentionOpen && mentionResults[0]) {
+                          e.preventDefault();
+                          const picked = mentionResults[0];
+                          setNewComment(prev => prev.replace(/(^|\s)@([^\s@]{0,40})$/, `$1<@${picked.user_id}> `));
+                          setMentionOpen(false);
+                          setMentionQuery('');
+                        }
+                      }}
+                      placeholder="Escreva um comentário. Use @ para mencionar."
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100"
+                    />
+                    {mentionOpen && (
+                      <div className="absolute z-10 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow">
+                        {mentionResults.map(opt => (
+                          <button
+                            key={opt.user_id}
+                            onClick={() => {
+                              setNewComment(prev => prev.replace(/(^|\s)@([^\s@]{0,40})$/, `$1<@${opt.user_id}> `));
+                              setMentionOpen(false);
+                              setMentionQuery('');
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
+                          >
+                            @{opt.label}
+                          </button>
+                        ))}
+                        {mentionResults.length === 0 && (
+                          <div className="px-3 py-2 text-sm text-gray-500">Sem resultados</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!editCard || !newComment.trim()) return;
+                      try {
+                        // mentions simples: extrair UUIDs entre <@uuid>
+                        const mentionMatches = Array.from(newComment.matchAll(/<@([0-9a-fA-F-]{36})>/g)).map(m => m[1]);
+                        const { data, error } = await kanbanHelpers.addCardComment(editCard.id, newComment.trim(), mentionMatches);
+                        if (!error && data) {
+                          setCardComments(prev => [...prev, data]);
+                          setNewComment('');
+                          setMentionOpen(false);
+                          setMentionQuery('');
+                        }
+                      } catch {}
+                    }}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                  >
+                    Adicionar
+                  </button>
+                </div>
               </div>
             </div>
             <div className="flex justify-end space-x-3 mt-6">

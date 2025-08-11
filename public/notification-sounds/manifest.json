@@ -1,6 +1,6 @@
 {
     "sounds": [
-      { "file": "notif.mp3", "label": "Notif " },
+      { "file": "notif.mp3", "label": "Notif" },
       { "file": "notif1.mp3", "label": "Notif 1" },
       { "file": "notif2.mp3", "label": "Notif 2" },
       { "file": "notif3.mp3", "label": "Notif 3" },

@@ -44,14 +44,41 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         const soundOn = localStorage.getItem('settings:notificationSound') !== 'false';
         if (soundOn) {
-          const selectedFile = localStorage.getItem('settings:notificationSoundFile') || '';
           const volumeStr = localStorage.getItem('settings:notificationSoundVolume') || '0.6';
           const parsed = parseFloat(volumeStr);
           const volume = isNaN(parsed) ? 0.6 : Math.max(0, Math.min(1, parsed));
-          const src = selectedFile ? `/notification-sounds/${selectedFile}` : '/notif.mp3';
-          const audio = new Audio(src);
-          audio.volume = volume;
-          void audio.play();
+          void (async () => {
+            try {
+              const selectedFile = localStorage.getItem('settings:notificationSoundFile') || '';
+              let src = '';
+              if (selectedFile) {
+                src = `/notification-sounds/${selectedFile}`;
+              } else {
+                const cachedFirst = localStorage.getItem('settings:notificationSoundFirstFile') || '';
+                if (cachedFirst) {
+                  src = `/notification-sounds/${cachedFirst}`;
+                } else {
+                  try {
+                    const res = await fetch('/notification-sounds/manifest.json');
+                    if (res.ok) {
+                      const json = await res.json();
+                      const first = Array.isArray(json?.sounds) && json.sounds[0]?.file;
+                      if (first) {
+                        try { localStorage.setItem('settings:notificationSoundFirstFile', first); } catch {}
+                        src = `/notification-sounds/${first}`;
+                      }
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }
+                if (!src) src = '/notification-sounds/notif.mp3';
+              }
+              const audio = new Audio(src);
+              audio.volume = volume;
+              await audio.play();
+            } catch {}
+          })();
         }
       }
     } catch {}

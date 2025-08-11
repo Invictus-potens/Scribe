@@ -50,6 +50,10 @@ export default function Header({
     const v = parseFloat(localStorage.getItem('settings:notificationSoundVolume') || '0.6');
     return isNaN(v) ? 0.6 : Math.max(0, Math.min(1, v));
   });
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('settings:notificationSound') !== 'false';
+  });
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -96,7 +100,16 @@ export default function Header({
         }
         if (!res.ok) { setSoundList([]); return; }
         const json = await res.json();
-        setSoundList(Array.isArray(json?.sounds) ? json.sounds : []);
+        const sounds = Array.isArray(json?.sounds) ? json.sounds : [];
+        setSoundList(sounds);
+        if (sounds.length > 0) {
+          const current = localStorage.getItem('settings:notificationSoundFile') || '';
+          if (!current) {
+            try { localStorage.setItem('settings:notificationSoundFile', sounds[0].file); } catch {}
+            setSelectedSoundFile(sounds[0].file);
+          }
+          try { localStorage.setItem('settings:notificationSoundFirstFile', sounds[0].file); } catch {}
+        }
       } catch {
         setSoundList([]);
       }
@@ -343,15 +356,16 @@ export default function Header({
                     <button
                       onClick={(e) => {
                         const key = 'settings:notificationSound';
-                        const current = localStorage.getItem(key) !== 'false';
-                        localStorage.setItem(key, current ? 'false' : 'true');
+                        const next = !soundEnabled;
+                        try { localStorage.setItem(key, next ? 'true' : 'false'); } catch {}
+                        setSoundEnabled(next);
                         const target = e.currentTarget as HTMLElement;
                         target.classList.add('ring-2');
                         setTimeout(() => target.classList.remove('ring-2'), 300);
                       }}
                       className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
                     >
-                      {typeof window !== 'undefined' && localStorage.getItem('settings:notificationSound') === 'false' ? t('common.inactive') : t('common.active')}
+                      {soundEnabled ? t('common.active') : t('common.inactive')}
                     </button>
                   </div>
                   <div>
@@ -415,7 +429,7 @@ export default function Header({
                       <button
                         onClick={async () => {
                           try {
-                            const src = selectedSoundFile ? `/notification-sounds/${selectedSoundFile}` : '/notif.mp3';
+                            const src = selectedSoundFile ? `/notification-sounds/${selectedSoundFile}` : '/notification-sounds/notif.mp3';
                             const audio = new Audio(src);
                             audio.volume = soundVolume;
                             await audio.play();

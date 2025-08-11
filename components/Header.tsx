@@ -40,6 +40,11 @@ export default function Header({
     if (typeof window === 'undefined') return 'blue';
     return localStorage.getItem('settings:accentTheme') || 'blue';
   });
+  const [soundList, setSoundList] = useState<{ file: string; label?: string }[]>([]);
+  const [selectedSoundFile, setSelectedSoundFile] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return localStorage.getItem('settings:notificationSoundFile') || '';
+  });
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -73,6 +78,20 @@ export default function Header({
       setInvitations(data || []);
     };
     loadInvites();
+  }, []);
+
+  useEffect(() => {
+    const loadSounds = async () => {
+      try {
+        const res = await fetch('/notification-sounds/manifest.json');
+        if (!res.ok) return;
+        const json = await res.json();
+        setSoundList(Array.isArray(json?.sounds) ? json.sounds : []);
+      } catch {
+        setSoundList([]);
+      }
+    };
+    loadSounds();
   }, []);
 
   const handleInvitationAction = async (
@@ -308,6 +327,55 @@ export default function Header({
                     >
                       {typeof window !== 'undefined' && localStorage.getItem('settings:dnd') === 'true' ? t('common.active') : t('common.inactive')}
                     </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700 dark:text-gray-300">Som de notificação</span>
+                    <button
+                      onClick={(e) => {
+                        const key = 'settings:notificationSound';
+                        const current = localStorage.getItem(key) !== 'false';
+                        localStorage.setItem(key, current ? 'false' : 'true');
+                        const target = e.currentTarget as HTMLElement;
+                        target.classList.add('ring-2');
+                        setTimeout(() => target.classList.remove('ring-2'), 300);
+                      }}
+                      className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                    >
+                      {typeof window !== 'undefined' && localStorage.getItem('settings:notificationSound') === 'false' ? t('common.inactive') : t('common.active')}
+                    </button>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 dark:text-gray-300 mb-1" htmlFor="notif-sound-file">Som de notificação</label>
+                    <select
+                      id="notif-sound-file"
+                      value={selectedSoundFile}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setSelectedSoundFile(v);
+                        try { localStorage.setItem('settings:notificationSoundFile', v); } catch {}
+                      }}
+                      className="w-full bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-gray-800 dark:text-gray-200"
+                    >
+                      <option value="">Padrão</option>
+                      {soundList.map((s) => (
+                        <option key={s.file} value={s.file}>{s.label || s.file}</option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const src = selectedSoundFile ? `/notification-sounds/${selectedSoundFile}` : '/notif.mp3';
+                            const audio = new Audio(src);
+                            audio.volume = 0.6;
+                            await audio.play();
+                          } catch {}
+                        }}
+                        className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                      >
+                        Testar som
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-gray-700 dark:text-gray-300 mb-1" htmlFor="language-select">{t('settings.language')}</label>

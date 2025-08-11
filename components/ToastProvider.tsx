@@ -39,6 +39,19 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     } catch {}
     const id = Math.random().toString(36).slice(2);
     setToasts(prev => [...prev, { id, text, type, durationMs }]);
+    // Play sound if enabled
+    try {
+      if (typeof window !== 'undefined') {
+        const soundOn = localStorage.getItem('settings:notificationSound') !== 'false';
+        if (soundOn) {
+          const selectedFile = localStorage.getItem('settings:notificationSoundFile') || '';
+          const src = selectedFile ? `/notification-sounds/${selectedFile}` : '/notif.mp3';
+          const audio = new Audio(src);
+          audio.volume = 0.6;
+          void audio.play();
+        }
+      }
+    } catch {}
     if (durationMs > 0) {
       setTimeout(() => remove(id), durationMs);
     }

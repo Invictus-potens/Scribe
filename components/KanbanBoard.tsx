@@ -274,7 +274,7 @@ export default function KanbanBoard() {
     if (!draggedCard || !activeBoard) return;
     const meta = boards.find(b => b.id === activeBoard.id);
     const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
-    // WIP enforcement: block if target exceeds limit and user can't override
+      // WIP enforcement: block if target exceeds limit and user can't override
     const targetColumn = activeBoard.columns.find(c => c.id === targetColumnId);
     if (targetColumn && typeof (targetColumn as any).wip_limit === 'number') {
       const limit = (targetColumn as any).wip_limit as number;
@@ -282,11 +282,11 @@ export default function KanbanBoard() {
       const targetCount = targetColumn.cards.length + (isSameColumn ? 0 : 1);
       if (limit >= 0 && targetCount > limit) {
         if (!can('manage_columns')) {
-          toast.info('Limite WIP atingido nesta coluna.');
+          toast.info(`Limite WIP atingido na coluna "${targetColumn.title}" (limite ${limit}, alvo ${targetCount}).`);
           setDraggedCard(null); setDragOverColumnId(null); setDragOverIndex(null);
           return;
         } else {
-          const ok = typeof window !== 'undefined' ? window.confirm('Esta coluna excederá o WIP. Deseja forçar a movimentação?') : true;
+          const ok = typeof window !== 'undefined' ? window.confirm(`A coluna "${targetColumn.title}" excederá o WIP (limite ${limit}, alvo ${targetCount}). Deseja forçar a movimentação?`) : true;
           if (!ok) { setDraggedCard(null); setDragOverColumnId(null); setDragOverIndex(null); return; }
         }
       }
@@ -400,8 +400,9 @@ export default function KanbanBoard() {
       // WIP enforcement on create
       if (typeof (targetColumn as any).wip_limit === 'number') {
         const limit = (targetColumn as any).wip_limit as number;
-        if (limit >= 0 && targetColumn.cards.length >= limit && !can('manage_columns')) {
-          toast.info('Limite WIP atingido nesta coluna.');
+        const targetCount = targetColumn.cards.length + 1;
+        if (limit >= 0 && targetCount > limit && !can('manage_columns')) {
+          toast.info(`Limite WIP atingido na coluna "${targetColumn.title}" (limite ${limit}, alvo ${targetCount}).`);
           return;
         }
       }
@@ -520,6 +521,9 @@ export default function KanbanBoard() {
     // Build cards filter from current columns
     const columnIds = activeBoard.columns.map(c => c.id);
     const cardsFilter = columnIds.length > 0 ? `column_id=in.(${columnIds.join(',')})` : '';
+    // Build comments filter from current cards
+    const cardIds = activeBoard.columns.flatMap(c => c.cards.map(cd => cd.id));
+    const commentsFilter = cardIds.length > 0 ? `card_id=in.(${cardIds.join(',')})` : '';
 
     // Clean previous channel
     if (realtimeRef.current) {
@@ -615,6 +619,112 @@ export default function KanbanBoard() {
           }
           return { ...prev, columns: cols };
         });
+      });
+    }
+
+    // Comments: notify mentions in new comments
+    if (commentsFilter) {
+      channel.on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'kanban_card_comments', filter: commentsFilter
+      }, (payload: any) => {
+        try {
+          const mentions = (payload.new?.mentions || []) as string[];
+          const actorId = payload.new?.user_id as string | undefined;
+          const cardId = payload.new?.card_id as string | undefined;
+          if (!cardId) return;
+          const isMentioned = Array.isArray(mentions) && currentUser && mentions.includes(currentUser.id);
+          const isSelf = currentUser && actorId === currentUser.id;
+          if (!isMentioned || isSelf) return;
+          // Resolve names
+          const actorName = actorId ? userIdToLabel(actorId) : 'Alguém';
+          const card = activeBoard.columns.flatMap(c => c.cards).find(cd => cd.id === cardId);
+          const cardTitle = card?.title || 'card';
+          toast.info(`${actorName} mencionou você em "${cardTitle}"`);
+        } catch {}
+      });
+    }
+
+    // Cards: toasts for assignment changes and due date updates
+    if (cardsFilter) {
+      // Assigned to me or unassigned from me
+      channel.on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'kanban_cards', filter: cardsFilter
+      }, (payload: any) => {
+        try {
+          if (!currentUser) return;
+          const before = payload.old as any;
+          const after = payload.new as any;
+          const wasMine = before?.assignee_id === currentUser.id;
+          const isMine = after?.assignee_id === currentUser.id;
+          const cardTitle = String(after?.title || 'card');
+
+          if (isMine && !wasMine) {
+            toast.info(`Você foi atribuído(a) ao card "${cardTitle}"`);
+          }
+          if (!isMine && wasMine) {
+            toast.info(`Você não é mais responsável pelo card "${cardTitle}"`);
+          }
+
+          // Due date changed on my cards
+          if (isMine) {
+            const oldDue = before?.due_date || '';
+            const newDue = after?.due_date || '';
+            if (oldDue !== newDue) {
+              if (newDue) {
+                const pretty = formatDate(newDue, { year: 'numeric', month: '2-digit', day: '2-digit' });
+                toast.info(`Data de vencimento de "${cardTitle}" alterada para ${pretty}`);
+              } else {
+                toast.info(`Data de vencimento de "${cardTitle}" foi removida`);
+              }
+            }
+          }
+        } catch {}
+      });
+
+      // New card assigned to me
+      channel.on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'kanban_cards', filter: cardsFilter
+      }, (payload: any) => {
+        try {
+          if (!currentUser) return;
+          const after = payload.new as any;
+          const isMine = after?.assignee_id === currentUser.id;
+          if (isMine) {
+            const cardTitle = String(after?.title || 'card');
+            toast.info(`Novo card "${cardTitle}" atribuído a você`);
+          }
+        } catch {}
+      });
+    }
+
+    // Cards: toasts when a card is assigned to the current user
+    if (cardsFilter) {
+      channel.on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'kanban_cards', filter: cardsFilter
+      }, (payload: any) => {
+        try {
+          if (!currentUser) return;
+          const before = payload.old as any;
+          const after = payload.new as any;
+          const becameMine = after?.assignee_id === currentUser.id && before?.assignee_id !== currentUser.id;
+          if (becameMine) {
+            const cardTitle = String(after?.title || 'card');
+            toast.info(`Você foi atribuído(a) ao card "${cardTitle}"`);
+          }
+        } catch {}
+      });
+      channel.on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'kanban_cards', filter: cardsFilter
+      }, (payload: any) => {
+        try {
+          if (!currentUser) return;
+          const after = payload.new as any;
+          const isMine = after?.assignee_id === currentUser.id;
+          if (isMine) {
+            const cardTitle = String(after?.title || 'card');
+            toast.info(`Novo card "${cardTitle}" atribuído a você`);
+          }
+        } catch {}
       });
     }
 
@@ -1561,6 +1671,7 @@ export default function KanbanBoard() {
                       title: editCard.title,
                       description: editCard.description,
                       assignee: editCard.assignee,
+                      assignee_id: (editCard as any).assignee_id,
                       priority: editCard.priority,
                       due_date: editCard.dueDate
                     } as any);

@@ -72,11 +72,29 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     // ignore
                   }
                 }
-                if (!src) src = '/notification-sounds/notif.mp3';
+                if (!src) src = '/notification-sounds/notif.wav';
               }
-              const audio = new Audio(src);
-              audio.volume = volume;
-              await audio.play();
+              const audio = new Audio();
+              const tryPlay = async (path: string) => {
+                return new Promise<void>((resolve, reject) => {
+                  audio.src = `${path}?ts=${Date.now()}`;
+                  audio.preload = 'auto';
+                  audio.volume = volume;
+                  audio.oncanplay = () => {
+                    audio.play().then(() => resolve()).catch(reject);
+                  };
+                  audio.onerror = () => reject(new Error('audio element error for ' + path));
+                });
+              };
+              const ext = (src.split('.').pop() || '').toLowerCase();
+              const base = src.slice(0, src.length - ext.length - 1);
+              try {
+                await tryPlay(src);
+              } catch {
+                // Try alternative extension (wav<->mp3)
+                const alt = ext === 'wav' ? `${base}.mp3` : `${base}.wav`;
+                try { await tryPlay(alt); } catch {}
+              }
             } catch {}
           })();
         }

@@ -98,20 +98,66 @@ export default function Header({
           // fallback relative
           res = await fetch(`notification-sounds/manifest.json?ts=${Date.now()}`);
         }
-        if (!res.ok) { setSoundList([]); return; }
-        const json = await res.json();
-        const sounds = Array.isArray(json?.sounds) ? json.sounds : [];
-        setSoundList(sounds);
-        if (sounds.length > 0) {
+        if (!res.ok) { 
+          // fallback list if manifest not reachable
+          const fallback = [
+            { file: 'notif.wav', label: 'Notif' },
+            { file: 'notif1.wav', label: 'Notif 1' },
+            { file: 'notif2.wav', label: 'Notif 2' },
+            { file: 'notif3.wav', label: 'Notif 3' },
+            { file: 'notif4.wav', label: 'Notif 4' }
+          ];
+          setSoundList(fallback);
           const current = localStorage.getItem('settings:notificationSoundFile') || '';
-          if (!current) {
-            try { localStorage.setItem('settings:notificationSoundFile', sounds[0].file); } catch {}
-            setSelectedSoundFile(sounds[0].file);
+          const inList = fallback.some(s => s.file === current);
+          const first = fallback[0]?.file || '';
+          if (!inList) {
+            try { localStorage.setItem('settings:notificationSoundFile', first); } catch {}
+            setSelectedSoundFile(first);
           }
-          try { localStorage.setItem('settings:notificationSoundFirstFile', sounds[0].file); } catch {}
+          try { if (first) localStorage.setItem('settings:notificationSoundFirstFile', first); } catch {}
+          return; 
         }
+        const json = await res.json();
+        let sounds = Array.isArray(json?.sounds) ? json.sounds : [];
+        if (!Array.isArray(sounds) || sounds.length === 0) {
+          sounds = [
+            { file: 'notif.wav', label: 'Notif' },
+            { file: 'notif1.wav', label: 'Notif 1' },
+            { file: 'notif2.wav', label: 'Notif 2' },
+            { file: 'notif3.wav', label: 'Notif 3' },
+            { file: 'notif4.wav', label: 'Notif 4' }
+          ];
+        }
+        setSoundList(sounds);
+        const current = localStorage.getItem('settings:notificationSoundFile') || '';
+        const inList = sounds.some((s: any) => s.file === current);
+        const first = sounds[0]?.file || '';
+        if (!inList) {
+          try { localStorage.setItem('settings:notificationSoundFile', first); } catch {}
+          setSelectedSoundFile(first);
+        } else if (!current && first) {
+          try { localStorage.setItem('settings:notificationSoundFile', first); } catch {}
+          setSelectedSoundFile(first);
+        }
+        try { if (first) localStorage.setItem('settings:notificationSoundFirstFile', first); } catch {}
       } catch {
-        setSoundList([]);
+        const fallback = [
+          { file: 'notif.wav', label: 'Notif' },
+          { file: 'notif1.wav', label: 'Notif 1' },
+          { file: 'notif2.wav', label: 'Notif 2' },
+          { file: 'notif3.wav', label: 'Notif 3' },
+          { file: 'notif4.wav', label: 'Notif 4' }
+        ];
+        setSoundList(fallback);
+        const current = localStorage.getItem('settings:notificationSoundFile') || '';
+        const inList = fallback.some(s => s.file === current);
+        const first = fallback[0]?.file || '';
+        if (!inList) {
+          try { localStorage.setItem('settings:notificationSoundFile', first); } catch {}
+          setSelectedSoundFile(first);
+        }
+        try { if (first) localStorage.setItem('settings:notificationSoundFirstFile', first); } catch {}
       }
     };
     loadSounds();
@@ -429,11 +475,63 @@ export default function Header({
                       <button
                         onClick={async () => {
                           try {
-                            const src = selectedSoundFile ? `/notification-sounds/${selectedSoundFile}` : '/notification-sounds/notif.mp3';
-                            const audio = new Audio(src);
+                            const fileWithExt = (selectedSoundFile || 'notif.wav');
+                            const baseName = fileWithExt.replace(/\.(mp3|wav|ogg)$/i, '');
+                            const candidates: { path: string; type: string }[] = [
+                              { path: `/notification-sounds/${baseName}.wav`, type: 'audio/wav' },
+                              { path: `/notification-sounds/${baseName}.ogg`, type: 'audio/ogg' },
+                              { path: `/notification-sounds/${baseName}.mp3`, type: 'audio/mpeg' },
+                            ];
+                            const audio = new Audio();
+                            const supportScore = (t: string) => {
+                              const s = audio.canPlayType(t);
+                              return s === 'probably' ? 2 : s === 'maybe' ? 1 : 0;
+                            };
+                            candidates.sort((a, b) => supportScore(b.type) - supportScore(a.type));
+                            let played = false;
+                            for (const c of candidates) {
+                              if (supportScore(c.type) === 0) continue;
+                              try {
+                                await new Promise<void>((resolve, reject) => {
+                                  const onErr = () => { cleanup(); reject(new Error('audio error')); };
+                                  const onCan = () => {
+                                    audio.play().then(() => { cleanup(); resolve(); }).catch((e) => { cleanup(); reject(e); });
+                                  };
+                                  const cleanup = () => {
+                                    audio.removeEventListener('error', onErr);
+                                    audio.removeEventListener('canplay', onCan);
+                                  };
+                                  audio.src = `${c.path}?ts=${Date.now()}`;
+                                  audio.preload = 'auto';
                             audio.volume = soundVolume;
-                            await audio.play();
-                          } catch {}
+                                  audio.addEventListener('error', onErr);
+                                  audio.addEventListener('canplay', onCan);
+                                  audio.load();
+                                });
+                                console.info('[sound] playing', c.path, 'type', c.type);
+                                played = true;
+                                break;
+                              } catch (e) {
+                                console.warn('[sound] failed candidate', c.path, e);
+                              }
+                            }
+                            if (!played) {
+                              // Beep fallback
+                              const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                              const o = ctx.createOscillator();
+                              const g = ctx.createGain();
+                              o.type = 'sine';
+                              o.frequency.value = 880;
+                              g.gain.value = Math.max(0, Math.min(1, soundVolume)) * 0.2;
+                              o.connect(g);
+                              g.connect(ctx.destination);
+                              const now = ctx.currentTime;
+                              o.start(now);
+                              o.stop(now + 0.2);
+                            }
+                          } catch (err) {
+                            console.error('[sound] test failed', err);
+                          }
                         }}
                         className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
                       >

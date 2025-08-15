@@ -163,12 +163,52 @@ export const kanbanHelpers = {
   },
 
   async deleteColumn(columnId: string): Promise<{ error: any }> {
-    const { error } = await supabase
-      .from('kanban_columns')
-      .delete()
-      .eq('id', columnId);
+    try {
+      // Get the column to be deleted to know its board_id and order_index
+      const { data: columnToDelete, error: fetchError } = await supabase
+        .from('kanban_columns')
+        .select('board_id, order_index')
+        .eq('id', columnId)
+        .single();
 
-    return { error };
+      if (fetchError) return { error: fetchError };
+
+      // Delete the column (this will cascade delete cards due to foreign key constraints)
+      const { error: deleteError } = await supabase
+        .from('kanban_columns')
+        .delete()
+        .eq('id', columnId);
+
+      if (deleteError) return { error: deleteError };
+
+      // Reorder remaining columns to fill the gap
+      const { data: remainingColumns, error: remainingError } = await supabase
+        .from('kanban_columns')
+        .select('id, order_index')
+        .eq('board_id', columnToDelete.board_id)
+        .gt('order_index', columnToDelete.order_index)
+        .order('order_index', { ascending: true });
+
+      if (remainingError) return { error: remainingError };
+
+      // Update order_index for remaining columns
+      if (remainingColumns && remainingColumns.length > 0) {
+        const updates = remainingColumns.map((col, index) => ({
+          id: col.id,
+          order_index: columnToDelete.order_index + index
+        }));
+
+        const { error: reorderError } = await supabase
+          .from('kanban_columns')
+          .upsert(updates);
+
+        if (reorderError) return { error: reorderError };
+      }
+
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
   },
 
   async reorderColumns(boardId: string, columnIds: string[]): Promise<{ error: any }> {
@@ -248,6 +288,57 @@ export const kanbanHelpers = {
     } catch (error) {
       return { error } as any;
     }
+  },
+
+  // Bulk operations for column deletion
+  async moveAllCardsToColumn(sourceColumnId: string, targetColumnId: string): Promise<{ error: any }> {
+    try {
+      // Get all cards from source column
+      const { data: sourceCards, error: fetchError } = await supabase
+        .from('kanban_cards')
+        .select('id')
+        .eq('column_id', sourceColumnId)
+        .order('order_index', { ascending: true });
+
+      if (fetchError) return { error: fetchError };
+
+      // Get current card count in target column to determine starting index
+      const { count: targetCount, error: countError } = await supabase
+        .from('kanban_cards')
+        .select('*', { count: 'exact', head: true })
+        .eq('column_id', targetColumnId);
+
+      if (countError) return { error: countError };
+
+      // Move all cards to target column
+      if (sourceCards && sourceCards.length > 0) {
+        const startIndex = targetCount || 0;
+        const updates = sourceCards.map((card, index) => ({
+          id: card.id,
+          column_id: targetColumnId,
+          order_index: startIndex + index
+        }));
+
+        const { error: updateError } = await supabase
+          .from('kanban_cards')
+          .upsert(updates);
+
+        if (updateError) return { error: updateError };
+      }
+
+      return { error: null };
+    } catch (error) {
+      return { error };
+    }
+  },
+
+  async deleteAllCardsInColumn(columnId: string): Promise<{ error: any }> {
+    const { error } = await supabase
+      .from('kanban_cards')
+      .delete()
+      .eq('column_id', columnId);
+
+    return { error };
   },
 
   // Get complete board with columns and cards

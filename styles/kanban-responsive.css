@@ -1,0 +1,168 @@
+/* Kanban Responsive System CSS Custom Properties */
+
+:root {
+  /* Breakpoints */
+  --kanban-mobile: 768px;
+  --kanban-tablet: 1024px;
+  --kanban-desktop: 1200px;
+  
+  /* Column sizing */
+  --kanban-column-min-width: 280px;
+  --kanban-column-max-width: 400px;
+  --kanban-column-gap: 24px;
+  
+  /* Mobile overrides */
+  --kanban-mobile-column-width: calc(100vw - 48px);
+  --kanban-mobile-gap: 16px;
+  
+  /* Tablet overrides */
+  --kanban-tablet-column-width: calc((100vw - 96px) / 2);
+  --kanban-tablet-gap: 20px;
+  
+  /* Animation durations */
+  --kanban-transition-fast: 150ms;
+  --kanban-transition-normal: 250ms;
+  --kanban-transition-slow: 350ms;
+}
+
+/* Base kanban container styles */
+.kanban-responsive-container {
+  display: flex;
+  gap: var(--kanban-column-gap);
+  padding: 0 24px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Column base styles */
+.kanban-column-responsive {
+  flex-shrink: 0;
+  min-width: var(--kanban-column-min-width);
+  max-width: var(--kanban-column-max-width);
+  width: var(--kanban-column-calculated-width, var(--kanban-column-min-width));
+  transition: width var(--kanban-transition-normal) ease-out;
+}
+
+/* Mobile styles */
+@media (max-width: 767px) {
+  .kanban-responsive-container {
+    gap: var(--kanban-mobile-gap);
+    padding: 0 16px;
+  }
+  
+  .kanban-column-responsive {
+    min-width: var(--kanban-mobile-column-width);
+    max-width: var(--kanban-mobile-column-width);
+    width: var(--kanban-mobile-column-width);
+  }
+  
+  /* Stack columns vertically on very small screens */
+  .kanban-responsive-container.mobile-stack {
+    flex-direction: column;
+    overflow-x: visible;
+    overflow-y: auto;
+  }
+  
+  .kanban-responsive-container.mobile-stack .kanban-column-responsive {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+  }
+}
+
+/* Tablet styles */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .kanban-responsive-container {
+    gap: var(--kanban-tablet-gap);
+    padding: 0 20px;
+  }
+  
+  .kanban-column-responsive {
+    min-width: var(--kanban-tablet-column-width);
+    max-width: var(--kanban-tablet-column-width);
+  }
+  
+  /* Wrap columns on tablet when there are many */
+  .kanban-responsive-container.tablet-wrap {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  .kanban-responsive-container {
+    padding: 0 24px;
+  }
+  
+  /* Enable smooth width transitions on desktop */
+  .kanban-column-responsive {
+    transition: width var(--kanban-transition-normal) ease-out,
+                min-width var(--kanban-transition-normal) ease-out,
+                max-width var(--kanban-transition-normal) ease-out;
+  }
+}
+
+/* Hover and interaction states */
+.kanban-column-header-editable {
+  position: relative;
+}
+
+.kanban-column-header-editable:hover .kanban-column-actions {
+  opacity: 1;
+  visibility: visible;
+}
+
+.kanban-column-actions {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--kanban-transition-fast) ease-out,
+              visibility var(--kanban-transition-fast) ease-out;
+}
+
+/* Focus and accessibility */
+.kanban-column-responsive:focus-within {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Loading states */
+.kanban-column-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.kanban-column-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .kanban-column-loading::after {
+    background: rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .kanban-column-responsive,
+  .kanban-column-actions {
+    transition: none;
+  }
+  
+  .kanban-responsive-container {
+    scroll-behavior: auto;
+  }
+}

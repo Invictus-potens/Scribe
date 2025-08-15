@@ -9,6 +9,10 @@ import { useToast } from './ToastProvider';
 import { useI18n, useDateFormatter } from './I18nProvider';
 import { authHelpers } from '../lib/supabase';
 import ShareBoardModal from './ShareBoardModal';
+import EditableTitle from './EditableTitle';
+import ColumnActions from './ColumnActions';
+import ColumnDeleteModal from './ColumnDeleteModal';
+import CardRelocationModal from './CardRelocationModal';
 
 export default function KanbanBoard() {
   const { t } = useI18n();
@@ -48,6 +52,15 @@ export default function KanbanBoard() {
   const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
   const [dragOverColumnIndex, setDragOverColumnIndex] = useState<number | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  
+  // Column editing state management
+  const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+  const [columnDeleteModal, setColumnDeleteModal] = useState<{
+    isOpen: boolean;
+    column: any | null;
+    hasCards: boolean;
+  }>({ isOpen: false, column: null, hasCards: false });
+  const [columnDeleteLoading, setColumnDeleteLoading] = useState(false);
   const [confirmDeleteLoading, setConfirmDeleteLoading] = useState(false);
   const [confirmDeleteCardOpen, setConfirmDeleteCardOpen] = useState(false);
   const [confirmDeleteCardLoading, setConfirmDeleteCardLoading] = useState(false);
@@ -239,6 +252,184 @@ export default function KanbanBoard() {
     } finally {
       setConfirmDeleteLoading(false);
       setConfirmDeleteOpen(false);
+    }
+  };
+
+  // Column editing handlers
+  const handleStartColumnEdit = (columnId: string) => {
+    if (!activeBoard) return;
+    const meta = boards.find(b => b.id === activeBoard.id);
+    const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+    if (!can('manage_columns')) {
+      toast.info(t('kanban.noPermissionCreateColumns'));
+      return;
+    }
+    setEditingColumnId(columnId);
+  };
+
+  const handleSaveColumnTitle = async (columnId: string, newTitle: string) => {
+    if (!activeBoard) return;
+    
+    try {
+      const { data, error } = await kanbanHelpers.updateColumn(columnId, newTitle);
+      if (error || !data) {
+        toast.error('Erro ao renomear coluna');
+        return;
+      }
+
+      // Update local state optimistically
+      setActiveBoard(prev => prev ? {
+        ...prev,
+        columns: prev.columns.map(col => 
+          col.id === columnId ? { ...col, title: newTitle } : col
+        )
+      } : prev);
+
+      setEditingColumnId(null);
+      toast.success('Coluna renomeada com sucesso');
+    } catch (error) {
+      console.error('Error updating column:', error);
+      toast.error('Erro inesperado ao renomear coluna');
+    }
+  };
+
+  const handleCancelColumnEdit = () => {
+    setEditingColumnId(null);
+  };
+
+  const handleDeleteColumn = (column: any) => {
+    if (!activeBoard) return;
+    const meta = boards.find(b => b.id === activeBoard.id);
+    const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
+    if (!can('manage_columns')) {
+      toast.info(t('kanban.noPermissionCreateColumns'));
+      return;
+    }
+
+    const hasCards = column.cards && column.cards.length > 0;
+    setColumnDeleteModal({
+      isOpen: true,
+      column,
+      hasCards
+    });
+  };
+
+  const handleConfirmDeleteColumn = async () => {
+    if (!columnDeleteModal.column || !activeBoard) return;
+    
+    try {
+      setColumnDeleteLoading(true);
+      
+      // Delete the column (this will cascade delete cards if any)
+      const { error } = await kanbanHelpers.deleteColumn(columnDeleteModal.column.id);
+      if (error) {
+        toast.error('Erro ao excluir coluna');
+        return;
+      }
+
+      // Update local state
+      const updatedColumns = activeBoard.columns.filter(c => c.id !== columnDeleteModal.column.id);
+      setActiveBoard({
+        ...activeBoard,
+        columns: updatedColumns
+      });
+
+      toast.success('Coluna excluída com sucesso');
+      setColumnDeleteModal({ isOpen: false, column: null, hasCards: false });
+    } catch (error) {
+      console.error('Error deleting column:', error);
+      toast.error('Erro inesperado ao excluir coluna');
+    } finally {
+      setColumnDeleteLoading(false);
+    }
+  };
+
+  const handleRelocateCards = async (targetColumnId: string) => {
+    if (!columnDeleteModal.column || !activeBoard) return;
+    
+    try {
+      setColumnDeleteLoading(true);
+      
+      const sourceColumn = columnDeleteModal.column;
+      const targetColumn = activeBoard.columns.find(c => c.id === targetColumnId);
+      if (!targetColumn) return;
+
+      // Use bulk move operation
+      const { error: moveError } = await kanbanHelpers.moveAllCardsToColumn(sourceColumn.id, targetColumnId);
+      if (moveError) {
+        toast.error('Erro ao mover cards');
+        return;
+      }
+
+      // Delete the empty column
+      const { error: deleteError } = await kanbanHelpers.deleteColumn(sourceColumn.id);
+      if (deleteError) {
+        toast.error('Erro ao excluir coluna após mover cards');
+        return;
+      }
+
+      // Update local state
+      const updatedColumns = activeBoard.columns.map(col => {
+        if (col.id === targetColumnId) {
+          return {
+            ...col,
+            cards: [...col.cards, ...sourceColumn.cards]
+          };
+        }
+        return col;
+      }).filter(col => col.id !== sourceColumn.id);
+
+      setActiveBoard({
+        ...activeBoard,
+        columns: updatedColumns
+      });
+
+      toast.success(`Cards movidos para "${targetColumn.title}" e coluna excluída`);
+      setColumnDeleteModal({ isOpen: false, column: null, hasCards: false });
+    } catch (error) {
+      console.error('Error relocating cards:', error);
+      toast.error('Erro ao mover cards');
+    } finally {
+      setColumnDeleteLoading(false);
+    }
+  };
+
+  const handleDeleteAllCards = async () => {
+    if (!columnDeleteModal.column || !activeBoard) return;
+    
+    try {
+      setColumnDeleteLoading(true);
+      
+      const sourceColumn = columnDeleteModal.column;
+      
+      // Use bulk delete operation for all cards in column
+      const { error: cardsError } = await kanbanHelpers.deleteAllCardsInColumn(sourceColumn.id);
+      if (cardsError) {
+        toast.error('Erro ao excluir cards');
+        return;
+      }
+
+      // Delete the column
+      const { error: columnError } = await kanbanHelpers.deleteColumn(sourceColumn.id);
+      if (columnError) {
+        toast.error('Erro ao excluir coluna');
+        return;
+      }
+
+      // Update local state
+      const updatedColumns = activeBoard.columns.filter(c => c.id !== sourceColumn.id);
+      setActiveBoard({
+        ...activeBoard,
+        columns: updatedColumns
+      });
+
+      toast.success('Coluna e todos os cards excluídos');
+      setColumnDeleteModal({ isOpen: false, column: null, hasCards: false });
+    } catch (error) {
+      console.error('Error deleting column and cards:', error);
+      toast.error('Erro ao excluir coluna e cards');
+    } finally {
+      setColumnDeleteLoading(false);
     }
   };
 
@@ -963,11 +1154,22 @@ export default function KanbanBoard() {
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDrop={(e) => handleDrop(e, column.id)}
             >
-              <div className={`flex items-center justify-between mb-4 ${draggedColumnId === column.id ? 'opacity-60' : ''}`}
-                draggable={!!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_columns}
+              <div className={`flex items-center justify-between mb-4 group ${draggedColumnId === column.id ? 'opacity-60' : ''} ${editingColumnId === column.id ? 'bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 -m-2' : ''}`}
+                draggable={!!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_columns && editingColumnId !== column.id}
                 onDragStart={(e) => handleColumnDragStart(e, column.id)}
               >
-                <h3 className="font-semibold text-gray-800 dark:text-gray-100">{column.title}</h3>
+                <EditableTitle
+                  title={column.title}
+                  isEditing={editingColumnId === column.id}
+                  canEdit={!!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_columns}
+                  onStartEdit={() => handleStartColumnEdit(column.id)}
+                  onSave={(newTitle) => handleSaveColumnTitle(column.id, newTitle)}
+                  onCancel={handleCancelColumnEdit}
+                  variant="column"
+                  size="md"
+                  placeholder="Column title..."
+                  maxLength={50}
+                />
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500 bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
                     {filteredCards.length}/{column.cards.length}
@@ -980,29 +1182,21 @@ export default function KanbanBoard() {
                       WIP {(column as any).wip_limit}
                     </span>
                   )}
-                  <button
-                    onClick={() => {
-                      const meta = boards.find(b => b.id === activeBoard.id);
-                      const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
-                      if (!can('create_card')) {
-                        setBanner({ type: 'info', text: 'Você não tem permissão para criar cards.' });
-                        return;
-                      }
-                      setNewCardColumn(column.id);
-                      setShowNewCardModal(true);
+                  <ColumnActions
+                    column={column}
+                    permissions={boards.find(b => b.id === activeBoard.id)?.permissions || {
+                      view_board: false,
+                      manage_board: false,
+                      manage_columns: false,
+                      create_card: false,
+                      edit_card: false,
+                      move_card: false,
+                      delete_card: false,
+                      manage_members: false
                     }}
-                    disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.create_card}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                    title={t('kanban.columnAddCard')}
-                    aria-label={t('kanban.columnAddCard')}
-                  >
-                    <i className="ri-add-line w-4 h-4 flex items-center justify-center text-gray-500"></i>
-                  </button>
-                  <button id="add-comment-btn"
-                    onClick={async () => {
-                      const meta = boards.find(b => b.id === activeBoard.id);
-                      const can = (perm: keyof BoardPermissions) => !!meta?.permissions?.[perm];
-                      if (!can('manage_columns')) { toast.info('Sem permissão'); return; }
+                    onEdit={() => handleStartColumnEdit(column.id)}
+                    onDelete={() => handleDeleteColumn(column)}
+                    onSetWipLimit={async () => {
                       const current = (column as any).wip_limit ?? '';
                       const input = window.prompt('Definir WIP limit (vazio para remover)', String(current));
                       if (input === null) return;
@@ -1016,13 +1210,12 @@ export default function KanbanBoard() {
                         }) : prev);
                       } catch { toast.error('Erro inesperado'); }
                     }}
-                    disabled={!boards.find(b => b.id === activeBoard.id)?.permissions?.manage_columns}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-                    title="Definir WIP limit"
-                    aria-label="Definir WIP limit"
-                  >
-                    <i className="ri-speed-up-line w-4 h-4"></i>
-                  </button>
+                    onAddCard={() => {
+                      setNewCardColumn(column.id);
+                      setShowNewCardModal(true);
+                    }}
+                    isEditing={editingColumnId === column.id}
+                  />
                 </div>
               </div>
 
@@ -1669,6 +1862,27 @@ export default function KanbanBoard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Column Delete Modals */}
+      {!columnDeleteModal.hasCards ? (
+        <ColumnDeleteModal
+          isOpen={columnDeleteModal.isOpen}
+          column={columnDeleteModal.column}
+          onClose={() => setColumnDeleteModal({ isOpen: false, column: null, hasCards: false })}
+          onConfirm={handleConfirmDeleteColumn}
+          loading={columnDeleteLoading}
+        />
+      ) : (
+        <CardRelocationModal
+          isOpen={columnDeleteModal.isOpen}
+          column={columnDeleteModal.column}
+          availableColumns={activeBoard?.columns.filter(c => c.id !== columnDeleteModal.column?.id) || []}
+          onClose={() => setColumnDeleteModal({ isOpen: false, column: null, hasCards: false })}
+          onRelocate={handleRelocateCards}
+          onDeleteAll={handleDeleteAllCards}
+          loading={columnDeleteLoading}
+        />
       )}
     </div>
   );

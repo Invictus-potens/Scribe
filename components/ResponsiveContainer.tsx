@@ -35,6 +35,7 @@ export default function ResponsiveContainer({
   const {
     columnStyles,
     responsiveLayout,
+    totalWidth,
   } = useColumnWidths(columns, {
     minColumnWidth,
     maxColumnWidth,
@@ -45,18 +46,13 @@ export default function ResponsiveContainer({
   // Notify parent of layout changes
   useEffect(() => {
     if (onLayoutChange) {
-      const totalWidth = Object.values(columnStyles).reduce((sum, style) => {
-        const width = parseInt(style['--kanban-column-calculated-width'] as string || '0');
-        return sum + width;
-      }, 0) + (columns.length - 1) * gap;
-
       onLayoutChange({
         layout: responsiveLayout.layout,
         columnsPerRow: responsiveLayout.columnsPerRow,
         totalWidth,
       });
     }
-  }, [responsiveLayout, columnStyles, columns.length, gap, onLayoutChange]);
+  }, [responsiveLayout, totalWidth, onLayoutChange]);
 
   // Handle scroll events for performance optimization
   useEffect(() => {

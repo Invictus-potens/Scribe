@@ -146,12 +146,20 @@ export function useColumnWidths(
     [columns.length, viewportWidth, opts]
   );
 
+  // Calculate total width for layout callback
+  const totalWidth = useMemo(() => {
+    const widthSum = Object.values(columnWidths).reduce(
+      (sum, dimensions) => sum + dimensions.calculatedWidth, 
+      0
+    );
+    return widthSum + (columns.length - 1) * opts.gap;
+  }, [columnWidths, columns.length, opts.gap]);
+
   return {
     columnWidths,
     columnStyles,
     responsiveLayout,
-    isMobile,
-    isTablet,
+    totalWidth,
     recalculate: calculateColumnWidths,
   };
 }

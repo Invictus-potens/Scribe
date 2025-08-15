@@ -15,6 +15,7 @@ import ColumnDeleteModal from './ColumnDeleteModal';
 import CardRelocationModal from './CardRelocationModal';
 import ResponsiveContainer from './ResponsiveContainer';
 import { useColumnWidths } from '../hooks/useColumnWidths';
+import Image from 'next/image';
 import '../styles/kanban-responsive.css';
 
 export default function KanbanBoard() {
@@ -73,7 +74,7 @@ export default function KanbanBoard() {
   const [cardComments, setCardComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState('');
   const [mentionOpen, setMentionOpen] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState('');
+  const [, setMentionQuery] = useState('');
   const [mentionResults, setMentionResults] = useState<{ user_id: string; label: string }[]>([]);
   const mentionRef = useRef<HTMLDivElement | null>(null);
   const [checklistItems, setChecklistItems] = useState<any[]>([]);
@@ -913,7 +914,7 @@ export default function KanbanBoard() {
         realtimeRef.current = null;
       }
     };
-  }, [activeBoard, currentUser]);
+  }, [activeBoard, currentUser, formatDate, toast, userIdToLabel]);
 
   // Realtime for comments of an open card
   useEffect(() => {
@@ -951,7 +952,6 @@ export default function KanbanBoard() {
       }
       // In edit modal: Ctrl+Enter to add comment
       if (showEditCardModal && (e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        const btn = document.activeElement as HTMLElement;
         // attempt to add comment
         const addBtn = document.querySelector('#add-comment-btn') as HTMLButtonElement | null;
         addBtn?.click();
@@ -1809,8 +1809,14 @@ export default function KanbanBoard() {
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2">
                           {a.mime_type?.startsWith('image/') && attachmentThumbs[a.id] && (
-                            <img src={attachmentThumbs[a.id] as string} alt={a.file_name} title={a.file_name}
-                              className="h-10 w-10 object-cover rounded border border-gray-200 dark:border-gray-600" />
+                            <Image 
+                              src={attachmentThumbs[a.id] as string} 
+                              alt={a.file_name} 
+                              title={a.file_name}
+                              width={40}
+                              height={40}
+                              className="h-10 w-10 object-cover rounded border border-gray-200 dark:border-gray-600" 
+                            />
                           )}
                           {a.mime_type === 'application/pdf' && (
                             <i className="ri-file-pdf-2-line text-red-600" title="PDF"></i>

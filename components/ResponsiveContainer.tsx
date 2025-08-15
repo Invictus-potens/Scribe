@@ -35,8 +35,6 @@ export default function ResponsiveContainer({
   const {
     columnStyles,
     responsiveLayout,
-    isMobile,
-    isTablet,
   } = useColumnWidths(columns, {
     minColumnWidth,
     maxColumnWidth,

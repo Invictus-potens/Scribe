@@ -49,7 +49,7 @@ export default function NotesEditor({
   selectedFolder, 
   selectedNote, 
   setSelectedNote, 
-  searchTerm,
+  searchTerm: _searchTerm,
   onNoteSaved,
   notes = [],
   hasUnsavedChanges: globalHasUnsavedChanges = false,
@@ -132,7 +132,7 @@ export default function NotesEditor({
     ],
     content: '',
     immediatelyRender: false,
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor: _editor }) => {
       // Marcar que há mudanças não salvas apenas se houver mudanças reais
       const hasRealChanges = checkForRealChanges();
       if (hasRealChanges) {

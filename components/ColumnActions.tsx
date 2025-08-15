@@ -16,7 +16,6 @@ export interface ColumnActionsProps {
 }
 
 export default function ColumnActions({
-  column,
   permissions,
   onEdit,
   onDelete,

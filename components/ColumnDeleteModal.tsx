@@ -49,7 +49,7 @@ export default function ColumnDeleteModal({
             </div>
             <div>
               <p className="text-gray-800 dark:text-gray-200 font-medium">
-                Are you sure you want to delete the column "{column.title}"?
+                Are you sure you want to delete the column &ldquo;{column.title}&rdquo;?
               </p>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 This column is empty, so no cards will be affected. This action cannot be undone.

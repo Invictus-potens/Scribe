@@ -62,7 +62,7 @@ export default function ShareBoardModal({ boardId, boardTitle, isOpen, onClose }
     }
   };
 
-  const defaultColab = useMemo(() => PRESETS.colaborador, []);
+  const defaultColab = useMemo(() => PRESETS.colaborador, [PRESETS.colaborador]);
 
   const permissionDescriptions: Record<keyof BoardPermissions, string> = {
     view_board: 'Pode visualizar o board, colunas e cards.',

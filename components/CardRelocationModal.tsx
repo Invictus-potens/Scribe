@@ -51,7 +51,7 @@ export default function CardRelocationModal({
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg w-96 max-w-md mx-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-            Delete Column "{column.title}"
+            Delete Column &ldquo;{column.title}&rdquo;
           </h3>
           {!loading && (
             <button

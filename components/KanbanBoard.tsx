@@ -943,7 +943,7 @@ export default function KanbanBoard() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // Global: 'c' to open new card modal on first column
-      if (!showEditCardModal && e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (!showEditCardModal && e.key && e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const active = activeBoard;
         if (!active) return;
         const meta = boards.find(b => b.id === active.id);

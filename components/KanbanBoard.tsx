@@ -621,7 +621,7 @@ export default function KanbanBoard() {
         assignee: newCard.assignee,
         assignee_id: newCard.assignee_id || null,
         priority: newCard.priority,
-        due_date: newCard.dueDate || null,
+        due_date: newCard.dueDate || undefined,
         tags: newCard.tags,
         order_index: targetColumn.cards.length
       });
@@ -1876,7 +1876,7 @@ export default function KanbanBoard() {
                       assignee: editCard.assignee,
                       assignee_id: ((editCard as any).assignee_id || null) as any,
                       priority: editCard.priority,
-                      due_date: (editCard as any).dueDate || null
+                      due_date: (editCard as any).dueDate || undefined
                     } as any);
                     if (error || !data) { toast.error('Erro ao salvar card'); return; }
                     const updated = {

@@ -14,6 +14,8 @@ import ColumnActions from './ColumnActions';
 import ColumnDeleteModal from './ColumnDeleteModal';
 import CardRelocationModal from './CardRelocationModal';
 import ResponsiveContainer from './ResponsiveContainer';
+import ColumnSummary from './ColumnSummary';
+import EmptyColumnPlaceholder from './EmptyColumnPlaceholder';
 import { useColumnWidths } from '../hooks/useColumnWidths';
 import Image from 'next/image';
 import '../styles/kanban-responsive.css';
@@ -1205,17 +1207,6 @@ export default function KanbanBoard() {
                   maxLength={50}
                 />
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500 bg-gray-200 dark:bg-gray-600 px-2 py-1 rounded-full">
-                    {filteredCards.length}/{column.cards.length}
-                  </span>
-                  {typeof (column as any).wip_limit === 'number' && (
-                    <span
-                      className={`text-xs px-2 py-1 rounded ${column.cards.length > (column as any).wip_limit ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200' : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200'}`}
-                      title="WIP Limit"
-                    >
-                      WIP {(column as any).wip_limit}
-                    </span>
-                  )}
                   <ColumnActions
                     column={column}
                     permissions={boards.find(b => b.id === activeBoard.id)?.permissions || {
@@ -1252,6 +1243,15 @@ export default function KanbanBoard() {
                   />
                 </div>
               </div>
+
+              <ColumnSummary
+                cards={column.cards}
+                wipLimit={(column as any).wip_limit}
+                filteredCount={filteredCards.length}
+                showPriorityBreakdown={true}
+                showDueDateWarnings={true}
+                className="mb-4 px-1"
+              />
 
               <div className="space-y-3 flex-1" ref={(el) => { columnRefs.current[column.id] = el; }}>
                 {filteredCards.map(card => (

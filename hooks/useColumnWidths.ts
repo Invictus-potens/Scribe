@@ -37,7 +37,7 @@ export function useColumnWidths(
   columns: (KanbanColumn & { cards: KanbanCard[] })[],
   options: UseColumnWidthsOptions = {}
 ) {
-  const { isMobile, isTablet, width: viewportWidth } = useResponsive();
+  const { isMobile, isTablet, isLandscape, width: viewportWidth } = useResponsive();
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const widthConfig = { ...DEFAULT_WIDTH_CONFIG, ...options.widthConfig };
   
@@ -59,7 +59,9 @@ export function useColumnWidths(
       viewportWidth,
       opts.minColumnWidth,
       opts.gap,
-      opts.padding
+      opts.padding,
+      isMobile,
+      isLandscape
     );
     
     // Handle different responsive layouts
@@ -104,7 +106,7 @@ export function useColumnWidths(
     }
     
     return newWidths;
-  }, [columns, viewportWidth, opts, widthConfig, calculateContentWidth]);
+  }, [columns, viewportWidth, opts, widthConfig, calculateContentWidth, isMobile, isLandscape]);
 
   // Debounced width calculation using utility
   const debouncedCalculator = useMemo(
@@ -141,9 +143,11 @@ export function useColumnWidths(
       viewportWidth,
       opts.minColumnWidth,
       opts.gap,
-      opts.padding
+      opts.padding,
+      isMobile,
+      isLandscape
     ),
-    [columns.length, viewportWidth, opts]
+    [columns.length, viewportWidth, opts, isMobile, isLandscape]
   );
 
   // Calculate total width for layout callback

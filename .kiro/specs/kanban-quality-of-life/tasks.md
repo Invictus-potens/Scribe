@@ -10,9 +10,11 @@
 
 
 
+
 - [ ] 2. Implement column title inline editing
 - [ ] 2.1 Add editing state management to KanbanBoard
   - Add editingColumnId state to track active edits
+
   - Create handlers for starting, saving, and canceling edits
 
 
@@ -28,6 +30,7 @@
   - Add validation for empty titles and whitespace trimming
   - _Requirements: 1.1, 1.2, 1.3, 6.2, 6.4_
 
+
 - [x] 2.3 Integrate EditableTitle into column headers
 
 
@@ -39,7 +42,8 @@
 
 
 
-- [ ] 3. Add column deletion functionality
+- [x] 3. Add column deletion functionality
+
 - [ ] 3.1 Create ColumnActions component with delete button
   - Build hover-revealed action buttons for column headers
   - Add delete button with proper permission checks
@@ -47,10 +51,12 @@
 
 
   - Implement tooltips and accessibility labels
+
   - Style consistently with existing UI patterns
   - _Requirements: 2.1, 2.6, 5.1_
 
 - [x] 3.2 Implement column deletion confirmation system
+
 
 
   - Create ConfirmDialog variant for column deletion
@@ -61,10 +67,14 @@
 
 
 
+
+
 - [ ] 3.3 Add column deletion backend integration
   - Extend kanbanHelpers with deleteColumn function
   - Implement order_index rebalancing after deletion
   - Add card relocation or bulk deletion options
+
+
 
 
 
@@ -79,10 +89,14 @@
   - Create responsive breakpoint detection hook
   - _Requirements: 3.1, 3.2, 3.3, 3.5_
 
+
+
 - [ ] 4.2 Build ResponsiveContainer component
   - Create container that manages column layout and widths
   - Implement smooth transitions between responsive states
   - Add horizontal scrolling when content exceeds viewport
+
+
   - Handle dynamic width updates without layout thrashing
   - _Requirements: 3.3, 3.5, 5.4_
 

@@ -4,6 +4,8 @@ export interface ResponsiveBreakpoints {
   isMobile: boolean;
   isTablet: boolean;
   isDesktop: boolean;
+  isLandscape: boolean;
+  isPortrait: boolean;
   width: number;
   height: number;
 }
@@ -21,6 +23,8 @@ export function useResponsive(): ResponsiveBreakpoints {
         isMobile: false,
         isTablet: false,
         isDesktop: true,
+        isLandscape: true,
+        isPortrait: false,
         width: 1200,
         height: 800,
       };
@@ -33,6 +37,8 @@ export function useResponsive(): ResponsiveBreakpoints {
       isMobile: width < BREAKPOINTS.mobile,
       isTablet: width >= BREAKPOINTS.mobile && width < BREAKPOINTS.desktop,
       isDesktop: width >= BREAKPOINTS.desktop,
+      isLandscape: width > height,
+      isPortrait: width <= height,
       width,
       height,
     };
@@ -49,6 +55,8 @@ export function useResponsive(): ResponsiveBreakpoints {
         isMobile: width < BREAKPOINTS.mobile,
         isTablet: width >= BREAKPOINTS.mobile && width < BREAKPOINTS.desktop,
         isDesktop: width >= BREAKPOINTS.desktop,
+        isLandscape: width > height,
+        isPortrait: width <= height,
         width,
         height,
       });

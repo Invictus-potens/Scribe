@@ -191,7 +191,9 @@ export function getResponsiveLayout(
   viewportWidth: number,
   minColumnWidth: number = 280,
   gap: number = 24,
-  padding: number = 48
+  padding: number = 48,
+  isMobile: boolean = false,
+  isLandscape: boolean = false
 ): {
   layout: 'mobile-stack' | 'mobile-scroll' | 'tablet-wrap' | 'desktop';
   columnsPerRow: number;
@@ -203,19 +205,19 @@ export function getResponsiveLayout(
   if (viewportWidth < 768) {
     const singleColumnWidth = availableWidth;
     
-    if (singleColumnWidth < minColumnWidth) {
-      // Stack vertically
-      return {
-        layout: 'mobile-stack',
-        columnsPerRow: 1,
-        columnWidth: availableWidth
-      };
-    } else {
-      // Horizontal scroll
+    // In landscape mode on mobile, prefer horizontal scroll even with limited width
+    if (isLandscape || singleColumnWidth >= minColumnWidth) {
       return {
         layout: 'mobile-scroll',
         columnsPerRow: 1,
         columnWidth: Math.max(minColumnWidth, singleColumnWidth)
+      };
+    } else {
+      // Stack vertically in portrait mode when width is too small
+      return {
+        layout: 'mobile-stack',
+        columnsPerRow: 1,
+        columnWidth: availableWidth
       };
     }
   }
@@ -223,7 +225,9 @@ export function getResponsiveLayout(
   // Tablet breakpoint
   if (viewportWidth < 1024) {
     const maxColumnsPerRow = Math.floor((availableWidth + gap) / (minColumnWidth + gap));
-    const columnsPerRow = Math.min(columnCount, Math.max(2, maxColumnsPerRow));
+    // In landscape mode, prefer 3 columns; in portrait, prefer 2
+    const preferredColumns = isLandscape ? 3 : 2;
+    const columnsPerRow = Math.min(columnCount, Math.max(preferredColumns, Math.min(maxColumnsPerRow, preferredColumns)));
     const columnWidth = (availableWidth - (columnsPerRow - 1) * gap) / columnsPerRow;
     
     return {

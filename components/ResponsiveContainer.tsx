@@ -69,9 +69,25 @@ export default function ResponsiveContainer({
       }, 150);
     };
 
+    // Add touch-specific event handling for better mobile experience
+    const handleTouchStart = () => {
+      container.style.scrollBehavior = 'auto';
+    };
+
+    const handleTouchEnd = () => {
+      setTimeout(() => {
+        container.style.scrollBehavior = 'smooth';
+      }, 100);
+    };
+
     container.addEventListener('scroll', handleScroll, { passive: true });
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    
     return () => {
       container.removeEventListener('scroll', handleScroll);
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchend', handleTouchEnd);
       clearTimeout(scrollTimeout);
     };
   }, []);
@@ -97,6 +113,21 @@ export default function ResponsiveContainer({
       case 'desktop':
         baseClasses.push('desktop');
         break;
+    }
+
+    // Add orientation classes for better CSS targeting
+    if (typeof window !== 'undefined') {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      baseClasses.push(isLandscape ? 'landscape' : 'portrait');
+      
+      // Add device type classes
+      if (window.innerWidth < 768) {
+        baseClasses.push('mobile-device');
+      } else if (window.innerWidth < 1024) {
+        baseClasses.push('tablet-device');
+      } else {
+        baseClasses.push('desktop-device');
+      }
     }
 
     return baseClasses.filter(Boolean).join(' ');

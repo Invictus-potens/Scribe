@@ -712,6 +712,9 @@ export default function KanbanBoard() {
     loadAssignees();
   }, [activeBoard, boards]);
 
+  // Helper function for user ID to label conversion
+  const userIdToLabel = (id: string) => (assigneeMemberOptions.find(o => o.user_id === id)?.label) || id;
+
   // ESC para fechar modal de novo card (hook deve ser chamado sempre, sem retornar antes)
   useEffect(() => {
     if (!showNewCardModal) return;
@@ -932,7 +935,6 @@ export default function KanbanBoard() {
     return () => { supabase.removeChannel(channel); };
   }, [showEditCardModal, editCard]);
 
-  const userIdToLabel = (id: string) => (assigneeMemberOptions.find(o => o.user_id === id)?.label) || id;
   const renderCommentText = (text: string) => text.replace(/<@([0-9a-fA-F-]{36})>/g, (_, uid) => `@${userIdToLabel(uid)}`);
 
   // Keyboard shortcuts

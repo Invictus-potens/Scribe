@@ -103,12 +103,12 @@ export default function ResponsiveContainer({
   };
 
   // Get container styles
-  const getContainerStyles = (): React.CSSProperties => {
-    const styles: React.CSSProperties = {
+  const getContainerStyles = (): React.CSSProperties & Record<string, any> => {
+    const styles: React.CSSProperties & Record<string, any> = {
       '--kanban-column-gap': `${gap}px`,
       '--kanban-container-padding': `${padding}px`,
       '--kanban-columns-count': columns.length,
-    } as React.CSSProperties;
+    };
 
     // Add layout-specific styles
     if (responsiveLayout.layout === 'tablet-wrap') {

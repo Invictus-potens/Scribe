@@ -13,6 +13,9 @@ import EditableTitle from './EditableTitle';
 import ColumnActions from './ColumnActions';
 import ColumnDeleteModal from './ColumnDeleteModal';
 import CardRelocationModal from './CardRelocationModal';
+import ResponsiveContainer from './ResponsiveContainer';
+import { useColumnWidths } from '../hooks/useColumnWidths';
+import '../styles/kanban-responsive.css';
 
 export default function KanbanBoard() {
   const { t } = useI18n();
@@ -80,6 +83,17 @@ export default function KanbanBoard() {
   const [attachmentThumbs, setAttachmentThumbs] = useState<Record<string, string | null>>({});
   const toast = useToast();
   const realtimeRef = useRef<any>(null);
+
+  // Responsive column widths
+  const { columnStyles, responsiveLayout } = useColumnWidths(
+    activeBoard?.columns || [],
+    {
+      minColumnWidth: 280,
+      maxColumnWidth: 400,
+      gap: 24,
+      padding: 48,
+    }
+  );
 
   // Load data on component mount
   useEffect(() => {
@@ -991,6 +1005,11 @@ export default function KanbanBoard() {
       <div className="flex items-center justify-between p-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{t('kanban.title')}</h1>
+          {process.env.NODE_ENV === 'development' && responsiveLayout && (
+            <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-gray-600 dark:text-gray-400">
+              {responsiveLayout.layout} ({responsiveLayout.columnsPerRow} cols)
+            </span>
+          )}
            <select
             value={activeBoard.id}
             onChange={(e) => handleBoardChange(e.target.value)}
@@ -1126,8 +1145,20 @@ export default function KanbanBoard() {
 
       {/* toasts substituem o banner local */}
 
-      <div className="flex-1 p-6 overflow-x-auto" onDragOver={handleColumnsDragOver} onDrop={handleColumnsDrop}>
-        <div className="flex space-x-6 h-full min-w-max" ref={columnsRowRef}>
+      <div className="flex-1 p-6" onDragOver={handleColumnsDragOver} onDrop={handleColumnsDrop}>
+        <ResponsiveContainer
+          columns={activeBoard.columns}
+          minColumnWidth={280}
+          maxColumnWidth={400}
+          gap={24}
+          padding={48}
+          className="h-full"
+          onLayoutChange={(layout) => {
+            // Optional: Handle layout changes for analytics or debugging
+            console.debug('Kanban layout changed:', layout);
+          }}
+        >
+          <div className="flex space-x-6 h-full min-w-max" ref={columnsRowRef}>
           {activeBoard.columns.map(column => {
             const filteredCards = column.cards
               .filter(card => {
@@ -1150,7 +1181,8 @@ export default function KanbanBoard() {
             return (
             <div
               key={column.id}
-              className={`w-80 rounded-lg p-4 flex flex-col ${dragOverColumnId === column.id ? 'bg-gray-100 dark:bg-gray-600 border-2 border-blue-400' : 'bg-gray-50 dark:bg-gray-700'}`}
+              className={`kanban-column-responsive rounded-lg p-4 flex flex-col ${dragOverColumnId === column.id ? 'bg-gray-100 dark:bg-gray-600 border-2 border-blue-400' : 'bg-gray-50 dark:bg-gray-700'}`}
+              style={columnStyles[column.id] || {}}
               onDragOver={(e) => handleDragOver(e, column.id)}
               onDrop={(e) => handleDrop(e, column.id)}
             >
@@ -1310,7 +1342,8 @@ export default function KanbanBoard() {
               </div>
             </div>
           );})}
-        </div>
+          </div>
+        </ResponsiveContainer>
       </div>
 
       {showNewCardModal && (

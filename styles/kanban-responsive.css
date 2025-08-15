@@ -28,11 +28,21 @@
 /* Base kanban container styles */
 .kanban-responsive-container {
   display: flex;
-  gap: var(--kanban-column-gap);
-  padding: 0 24px;
+  gap: var(--kanban-column-gap, 24px);
+  padding: 0 calc(var(--kanban-container-padding, 48px) / 2);
   overflow-x: auto;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Scrolling performance optimization */
+.kanban-responsive-container.scrolling {
+  pointer-events: none;
+}
+
+.kanban-responsive-container.scrolling * {
+  pointer-events: auto;
 }
 
 /* Column base styles */
@@ -44,63 +54,108 @@
   transition: width var(--kanban-transition-normal) ease-out;
 }
 
-/* Mobile styles */
+/* Mobile stack layout */
+.kanban-responsive-container.mobile-stack {
+  flex-direction: column;
+  overflow-x: visible;
+  overflow-y: auto;
+  gap: var(--kanban-mobile-gap, 16px);
+  padding: 0 16px;
+}
+
+.kanban-responsive-container.mobile-stack .kanban-column-responsive {
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  margin-bottom: var(--kanban-mobile-gap, 16px);
+}
+
+/* Mobile scroll layout */
+.kanban-responsive-container.mobile-scroll {
+  gap: var(--kanban-mobile-gap, 16px);
+  padding: 0 16px;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.kanban-responsive-container.mobile-scroll .kanban-column-responsive {
+  min-width: var(--kanban-mobile-column-width, calc(100vw - 48px));
+  max-width: var(--kanban-mobile-column-width, calc(100vw - 48px));
+  width: var(--kanban-mobile-column-width, calc(100vw - 48px));
+  flex-shrink: 0;
+}
+
+/* Mobile-specific styles */
 @media (max-width: 767px) {
-  .kanban-responsive-container {
-    gap: var(--kanban-mobile-gap);
+  .kanban-responsive-container:not(.mobile-stack):not(.mobile-scroll) {
+    gap: var(--kanban-mobile-gap, 16px);
     padding: 0 16px;
   }
   
   .kanban-column-responsive {
-    min-width: var(--kanban-mobile-column-width);
-    max-width: var(--kanban-mobile-column-width);
-    width: var(--kanban-mobile-column-width);
-  }
-  
-  /* Stack columns vertically on very small screens */
-  .kanban-responsive-container.mobile-stack {
-    flex-direction: column;
-    overflow-x: visible;
-    overflow-y: auto;
-  }
-  
-  .kanban-responsive-container.mobile-stack .kanban-column-responsive {
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
+    min-width: var(--kanban-mobile-column-width, calc(100vw - 48px));
+    max-width: var(--kanban-mobile-column-width, calc(100vw - 48px));
+    width: var(--kanban-mobile-column-width, calc(100vw - 48px));
   }
 }
 
-/* Tablet styles */
+/* Tablet wrap layout */
+.kanban-responsive-container.tablet-wrap {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  overflow-y: auto;
+  gap: var(--kanban-tablet-gap, 20px);
+  padding: 0 20px;
+  align-content: flex-start;
+}
+
+.kanban-responsive-container.tablet-wrap .kanban-column-responsive {
+  min-width: var(--kanban-tablet-column-width, calc((100vw - 96px) / 2));
+  max-width: var(--kanban-tablet-column-width, calc((100vw - 96px) / 2));
+  width: var(--kanban-tablet-column-width, calc((100vw - 96px) / 2));
+  margin-bottom: var(--kanban-tablet-gap, 20px);
+}
+
+/* Tablet-specific styles */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .kanban-responsive-container {
-    gap: var(--kanban-tablet-gap);
+  .kanban-responsive-container:not(.tablet-wrap) {
+    gap: var(--kanban-tablet-gap, 20px);
     padding: 0 20px;
   }
   
   .kanban-column-responsive {
-    min-width: var(--kanban-tablet-column-width);
-    max-width: var(--kanban-tablet-column-width);
-  }
-  
-  /* Wrap columns on tablet when there are many */
-  .kanban-responsive-container.tablet-wrap {
-    flex-wrap: wrap;
-    overflow-x: visible;
+    min-width: var(--kanban-tablet-column-width, calc((100vw - 96px) / 2));
+    max-width: var(--kanban-tablet-column-width, calc((100vw - 96px) / 2));
   }
 }
 
-/* Desktop styles */
+/* Desktop layout */
+.kanban-responsive-container.desktop {
+  gap: var(--kanban-column-gap, 24px);
+  padding: 0 24px;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.kanban-responsive-container.desktop .kanban-column-responsive {
+  /* Dynamic widths set via CSS custom properties */
+  min-width: var(--kanban-column-min-width, 280px);
+  max-width: var(--kanban-column-max-width, 400px);
+  width: var(--kanban-column-calculated-width, var(--kanban-column-min-width, 280px));
+  flex-shrink: 0;
+}
+
+/* Desktop-specific styles */
 @media (min-width: 1024px) {
-  .kanban-responsive-container {
+  .kanban-responsive-container:not(.desktop) {
     padding: 0 24px;
   }
   
   /* Enable smooth width transitions on desktop */
   .kanban-column-responsive {
-    transition: width var(--kanban-transition-normal) ease-out,
-                min-width var(--kanban-transition-normal) ease-out,
-                max-width var(--kanban-transition-normal) ease-out;
+    transition: width var(--kanban-transition-normal, 250ms) ease-out,
+                min-width var(--kanban-transition-normal, 250ms) ease-out,
+                max-width var(--kanban-transition-normal, 250ms) ease-out;
   }
 }
 
@@ -155,11 +210,34 @@
   }
 }
 
+/* Layout transition animations */
+.kanban-responsive-container {
+  transition: gap var(--kanban-transition-normal, 250ms) ease-out,
+              padding var(--kanban-transition-normal, 250ms) ease-out;
+}
+
+.kanban-column-responsive {
+  transition: width var(--kanban-transition-normal, 250ms) ease-out,
+              min-width var(--kanban-transition-normal, 250ms) ease-out,
+              max-width var(--kanban-transition-normal, 250ms) ease-out,
+              margin var(--kanban-transition-normal, 250ms) ease-out;
+}
+
+/* Smooth layout changes */
+.kanban-responsive-container.layout-changing {
+  pointer-events: none;
+}
+
+.kanban-responsive-container.layout-changing .kanban-column-responsive {
+  transition: all var(--kanban-transition-slow, 350ms) ease-out;
+}
+
 /* Reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
   .kanban-column-responsive,
-  .kanban-column-actions {
-    transition: none;
+  .kanban-column-actions,
+  .kanban-responsive-container {
+    transition: none !important;
   }
   
   .kanban-responsive-container {

@@ -50,17 +50,24 @@
   - Style consistently with existing UI patterns
   - _Requirements: 2.1, 2.6, 5.1_
 
-- [ ] 3.2 Implement column deletion confirmation system
+- [x] 3.2 Implement column deletion confirmation system
+
+
   - Create ConfirmDialog variant for column deletion
   - Add logic to detect empty vs non-empty columns
   - Build card relocation modal for columns with cards
   - Implement safe deletion with proper error handling
   - _Requirements: 2.2, 2.3, 2.4, 2.6_
 
+
+
 - [ ] 3.3 Add column deletion backend integration
   - Extend kanbanHelpers with deleteColumn function
   - Implement order_index rebalancing after deletion
   - Add card relocation or bulk deletion options
+
+
+
   - Test with real-time updates and concurrent users
   - _Requirements: 2.4, 2.5_
 
